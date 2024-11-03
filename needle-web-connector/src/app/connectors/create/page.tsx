@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
+
 import { getSession } from "~/utils/session-utils";
 import { listCollections } from "@needle-ai/needle-sdk";
+
+import { Footer } from "~/app/_components/atoms/Footer";
+import { Header } from "~/app/_components/atoms/Header";
+import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
 
 export default async function CreateConnectorPage() {
   const { user, session } = await getSession();
@@ -9,12 +13,7 @@ export default async function CreateConnectorPage() {
 
   return (
     <>
-      <header className="flex justify-between">
-        <p className="ml-auto p-2 text-sm">
-          <span className="text-gray-400">Logged in as </span>
-          <b>{user.email}</b>
-        </p>
-      </header>
+      <Header user={user} />
 
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
@@ -36,9 +35,7 @@ export default async function CreateConnectorPage() {
         </div>
       </main>
 
-      <footer className="py-2 text-center text-xs font-bold text-gray-400">
-        © Needle
-      </footer>
+      <Footer />
     </>
   );
 }

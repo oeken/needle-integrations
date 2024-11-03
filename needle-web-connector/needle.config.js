@@ -1,5 +1,5 @@
 export default {
-  appId: "AA27SUM4QFSU",
+  appId: "aa27sum4qfsu",
   appName: "Web Connector",
   appSlug: "web-connector",
   connectorType: "ext_web",

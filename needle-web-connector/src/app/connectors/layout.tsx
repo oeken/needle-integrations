@@ -3,9 +3,9 @@ import "~/styles/globals.css";
 import { type Metadata } from "next";
 
 import { TRPCReactProvider } from "~/trpc/react";
-import { SessionProvider } from "../_components/providers/SessionProvider";
 import { HydrateClient } from "~/trpc/server";
 import { getSession } from "~/utils/session-utils";
+import { SessionProvider } from "~/app/_components/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: "Needle Web Connector",
