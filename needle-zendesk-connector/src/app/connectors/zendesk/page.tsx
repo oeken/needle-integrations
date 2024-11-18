@@ -77,7 +77,7 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
       >
         <main className="mx-auto flex w-full flex-col px-4 xl:max-w-[50%]">
           <div className="my-8 flex flex-col">
-            <span className="text-zinc-500">
+            <span className="mb-2 text-zinc-500">
               Please select Zendesk tickets and articles to track. You can
               manage which items you want to sync with Needle.
             </span>

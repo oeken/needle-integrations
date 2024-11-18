@@ -5,37 +5,30 @@ import { getSession } from "~/utils/session-utils";
 import { api } from "~/trpc/server";
 import { Header } from "~/app/_components/atoms/Header";
 import { Footer } from "~/app/_components/atoms/Footer";
+import { Button } from "../_components/atoms/Button";
 
 export default async function ConnectorsPage() {
   const { user } = await getSession();
   const connectors = await api.connectors.list();
 
-  // console.log(connectors);
-
   return (
     <>
       <Header user={user} />
-
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
           <div className="flex w-full items-center justify-between">
             <h1 className="my-8 text-5xl font-extrabold tracking-tight">
               Connectors
             </h1>
-            <Link
-              className="rounded bg-orange-600 px-2 py-1 text-sm font-semibold hover:bg-orange-500"
-              href="/connectors/zendesk"
-            >
-              Connect Zendesk
+            <Link href="/connectors/zendesk">
+              <Button>Connect Zendesk</Button>
             </Link>
           </div>
-
           <ul className="flex flex-col gap-2">
             {connectors.map((connector) => (
               <ConnectorItem key={connector.id} connector={connector} />
             ))}
           </ul>
-
           {connectors.length === 0 && (
             <p className="mt-16 text-center text-sm text-gray-400">
               No connectors found.

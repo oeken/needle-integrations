@@ -5,6 +5,7 @@ import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
 import { useZendeskResources } from "./providers/ZendeskResourcesProvider";
+import { Button } from "./atoms/Button";
 
 export function CreateConnectorForm({
   collections,
@@ -40,7 +41,7 @@ export function CreateConnectorForm({
         />
       </div>
 
-      <div className="mt-2 flex flex-col">
+      <div className="mb-2 mt-2 flex flex-col">
         <label>Collection</label>
         <select
           value={collectionId}
@@ -55,8 +56,9 @@ export function CreateConnectorForm({
         </select>
       </div>
 
-      <button
+      <Button
         type="button"
+        className="ml-auto"
         onClick={() =>
           createZendeskConnector({
             name,
@@ -66,10 +68,10 @@ export function CreateConnectorForm({
             selectedArticles,
           })
         }
-        className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
+        // className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
       >
         Create Zendesk Connector
-      </button>
+      </Button>
     </form>
   );
 }

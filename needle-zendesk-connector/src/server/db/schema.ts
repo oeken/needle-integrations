@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   varchar,
+  bigint,
 } from "drizzle-orm/pg-core";
 
 export const createTable = pgTableCreator((name) => name);
@@ -13,15 +14,10 @@ export const filesTable = createTable("files", {
   id: serial("id").primaryKey(),
   ndlConnectorId: varchar("ndl_connector_id", { length: 256 }).notNull(),
   ndlFileId: varchar("ndl_file_id", { length: 256 }),
+  originId: bigint("origin_id", { mode: "number" }).notNull(), // Changed from integer to bigint
   url: text("url").notNull(),
-  type: varchar("type", { length: 50 }).notNull(), // 'ticket' or 'article'
   title: text("title").notNull(),
-  description: text("description").notNull(),
-  status: varchar("status", { length: 50 }),
-  priority: varchar("priority", { length: 50 }),
-  html_url: text("html_url"), // For articles
-  body: text("body"), // For articles
-  subject: text("subject"), // For tickets
+  type: varchar("type", { length: 50 }).notNull(), // 'ticket' or 'article'
   createdAt: timestamp("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

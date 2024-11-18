@@ -1,6 +1,8 @@
 import { type User } from "@needle-ai/needle-sdk";
 import { Header } from "../atoms/Header";
 import { Footer } from "../atoms/Footer";
+import Link from "next/link";
+import { Button } from "../atoms/Button";
 
 interface ZendeskSubdomainFormProps {
   user: User;
@@ -13,6 +15,13 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
 
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
+          <Link
+            href="/connectors"
+            className="my-8 mr-auto font-semibold text-gray-400 hover:text-white hover:underline"
+          >
+            ← Back
+          </Link>
+
           <h1 className="text-5xl font-extrabold tracking-tight">
             Connect Your Zendesk
           </h1>
@@ -39,12 +48,9 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
                 </span>
               </div>
             </div>
-            <button
-              type="submit"
-              className="mt-2 w-full rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
-            >
+            <Button className="mr-auto" type="submit">
               Connect Zendesk
-            </button>
+            </Button>
           </form>
         </div>
       </main>

@@ -39,38 +39,23 @@ export async function createZendeskConnector(
   );
 
   const filesToInsert = [
-    // Add tickets with full metadata
     ...selectedTickets.map((ticket) => ({
       ndlConnectorId: connector.id,
+      originId: ticket.id,
       url: ticket.url,
-      type: "ticket",
       title: ticket.subject,
-      description: ticket.description,
-      status: ticket.status,
+      type: "ticket",
       createdAt: new Date(ticket.created_at),
-      priority: ticket.priority,
-      // id: ticket.id,
-      // All available fields from ZendeskTicket
-      subject: ticket.subject,
-      created_at: ticket.created_at,
     })),
-    // Add articles with full metadata
     ...selectedArticles.map((article) => ({
       ndlConnectorId: connector.id,
+      originId: article.id,
       url: article.html_url,
-      type: "article",
       title: article.title,
-      description: article.body,
+      type: "article",
       createdAt: new Date(article.created_at),
-      // id: article.id,
-      // All available fields from ZendeskArticle
-      html_url: article.html_url,
-      body: article.body,
-      created_at: article.created_at,
     })),
   ];
-
-  // console.log({ selectedArticles, selectedTickets, filesToInsert });
 
   await db.insert(filesTable).values(filesToInsert);
 
@@ -110,7 +95,6 @@ export async function runZendeskConnector(
   { connectorId }: ConnectorRequest,
   session?: Session,
 ) {
-  // acts as access validation
   if (session) {
     await getConnector(connectorId, session.id);
   }
@@ -126,7 +110,6 @@ export async function runZendeskConnector(
     delete: [],
   };
 
-  // Article html olucak, ticket text/plain
   for (const file of files) {
     if (file.ndlFileId) {
       descriptor.update.push({ id: file.ndlFileId });
@@ -134,7 +117,7 @@ export async function runZendeskConnector(
       descriptor.create.push({
         id: createNeedleFileId(),
         url: file.url,
-        type: "text/plain",
+        type: file.type === "article" ? "text/html" : "text/plain",
       });
     }
   }

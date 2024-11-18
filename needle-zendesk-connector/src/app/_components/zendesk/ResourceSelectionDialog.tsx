@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Dialog } from "../atoms/Dialog";
 import { useZendeskResources } from "../providers/ZendeskResourcesProvider";
 import type { ZendeskTicket, ZendeskArticle } from "~/server/zendesk/types";
+import { Button } from "../atoms/Button";
 
 export function ResourceSelectionDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,12 +50,13 @@ export function ResourceSelectionDialog() {
 
   return (
     <>
-      <button
+      <Button
+        buttonType="filled"
         onClick={() => handleOpenChange(true)}
-        className="mr-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
+        className="mr-auto"
       >
         See Zendesk Resources
-      </button>
+      </Button>
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <div className="grid grid-cols-2 gap-6 bg-white p-6 dark:bg-zinc-900">
           {/* Tickets Selection */}
