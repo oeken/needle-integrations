@@ -16,12 +16,9 @@ export default async function ConnectorPage({
   const { user } = await getSession();
   const connector = await api.connectors.get({ connectorId });
 
-  // console.log("CONNECTOR: ", connector);
-
   return (
     <>
       <Header user={user} />
-
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
           <Link
@@ -34,9 +31,7 @@ export default async function ConnectorPage({
             <h1 className="text-5xl font-extrabold tracking-tight">
               {connector.name}
             </h1>
-
             <RunConnectorButton connectorId={connectorId} />
-
             {connector.error && (
               <span className="ml-auto text-3xl text-red-600">✗</span>
             )}
@@ -44,13 +39,11 @@ export default async function ConnectorPage({
               <span className="ml-auto text-3xl text-green-400">✓</span>
             )}
           </div>
-
           <div className="flex border-b border-gray-700 py-1 pl-2 text-sm text-gray-400">
             {connector.timezone}
             {", "}
             {connector.cron_job}
           </div>
-
           <div className="mt-4 flex flex-wrap gap-2 px-2">
             <span className="text-sm font-bold">Files: </span>
             {connector.files.map((file) => (
@@ -64,11 +57,9 @@ export default async function ConnectorPage({
               </a>
             ))}
           </div>
-
           <DeleteConnectorButton connectorId={connectorId} />
         </div>
       </main>
-
       <Footer />
     </>
   );

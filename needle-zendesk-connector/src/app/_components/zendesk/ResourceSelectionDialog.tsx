@@ -5,6 +5,7 @@ import { Dialog } from "../atoms/Dialog";
 import { useZendeskResources } from "../providers/ZendeskResourcesProvider";
 import type { ZendeskTicket, ZendeskArticle } from "~/server/zendesk/types";
 import { Button } from "../atoms/Button";
+import { Divider } from "../atoms/Divider";
 
 export function ResourceSelectionDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,17 +51,22 @@ export function ResourceSelectionDialog() {
 
   return (
     <>
-      <Button
-        buttonType="filled"
-        onClick={() => handleOpenChange(true)}
-        className="mr-auto"
+      <Dialog
+        trigger={
+          <Button
+            buttonType="filled"
+            onClick={() => handleOpenChange(true)}
+            className="mr-auto"
+          >
+            See Zendesk Resources
+          </Button>
+        }
+        isOpen={isOpen}
+        onOpenChange={handleOpenChange}
       >
-        See Zendesk Resources
-      </Button>
-      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <div className="grid grid-cols-2 gap-6 bg-white p-6 dark:bg-zinc-900">
+        <div className="mt-8 grid grid-cols-2 gap-6">
           {/* Tickets Selection */}
-          <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+          <div className="">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
                 Tickets ({tempSelectedTickets.length}/{tickets.length})
@@ -134,7 +140,7 @@ export function ResourceSelectionDialog() {
           </div>
 
           {/* Articles Selection */}
-          <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+          <div className="">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
                 Articles ({tempSelectedArticles.length}/{articles.length})
@@ -202,23 +208,19 @@ export function ResourceSelectionDialog() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-          <button
-            onClick={() => handleOpenChange(false)}
-            className="px-4 py-2 text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
+        <div className="mt-4 flex justify-end gap-2">
+          <Button onClick={() => handleOpenChange(false)} buttonType="ghost">
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               setSelectedTickets(tempSelectedTickets);
               setSelectedArticles(tempSelectedArticles);
               handleOpenChange(false);
             }}
-            className="bg-primary-600 hover:bg-primary-700 rounded px-4 py-2 text-white"
           >
             Save Selection
-          </button>
+          </Button>
         </div>
       </Dialog>
     </>

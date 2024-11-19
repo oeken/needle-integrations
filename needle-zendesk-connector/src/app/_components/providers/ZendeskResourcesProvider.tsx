@@ -41,8 +41,6 @@ export function ZendeskResourcesProvider({
     [],
   );
 
-  // console.log("SELECTED:", { selectedArticles, selectedTickets });
-
   return (
     <ZendeskResourcesContext.Provider
       value={{

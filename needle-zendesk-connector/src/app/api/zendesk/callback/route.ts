@@ -39,8 +39,6 @@ export async function GET(request: Request) {
       );
     }
 
-    console.log(tokens);
-
     const redirectUrl = buildSuccessRedirectUrl(
       env.NEXT_PUBLIC_APP_URL,
       tokens.access_token,

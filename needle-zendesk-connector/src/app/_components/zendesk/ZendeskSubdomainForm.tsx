@@ -3,6 +3,7 @@ import { Header } from "../atoms/Header";
 import { Footer } from "../atoms/Footer";
 import Link from "next/link";
 import { Button } from "../atoms/Button";
+import { Input } from "../atoms/Input";
 
 interface ZendeskSubdomainFormProps {
   user: User;
@@ -12,7 +13,6 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
   return (
     <>
       <Header user={user} />
-
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
           <Link
@@ -21,11 +21,9 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
           >
             ← Back
           </Link>
-
           <h1 className="text-5xl font-extrabold tracking-tight">
             Connect Your Zendesk
           </h1>
-
           <form action="" method="GET" className="mt-8 flex flex-col gap-4">
             <div>
               <label
@@ -35,15 +33,15 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
                 Your Zendesk Subdomain
               </label>
               <div className="mt-2 flex rounded-md">
-                <input
+                <Input
                   type="text"
                   name="subdomain"
                   id="subdomain"
-                  className="block w-full rounded-md border border-gray-700 bg-transparent px-3 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full"
                   placeholder="your-company"
                   required
                 />
-                <span className="inline-flex items-center px-3 text-gray-400">
+                <span className="inline-flex items-center pl-1 text-gray-400">
                   .zendesk.com
                 </span>
               </div>
@@ -54,7 +52,6 @@ export function ZendeskSubdomainForm({ user }: ZendeskSubdomainFormProps) {
           </form>
         </div>
       </main>
-
       <Footer />
     </>
   );

@@ -6,6 +6,8 @@ import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
 import { useZendeskResources } from "./providers/ZendeskResourcesProvider";
 import { Button } from "./atoms/Button";
+import { Select } from "./atoms/Select";
+import { Input } from "./atoms/Input";
 
 export function CreateConnectorForm({
   collections,
@@ -21,19 +23,19 @@ export function CreateConnectorForm({
 
   const { selectedTickets, selectedArticles } = useZendeskResources();
 
-  const { mutate: createZendeskConnector } = api.connectors.create.useMutation({
-    onSuccess: () => {
-      router.push("/connectors");
-      router.refresh();
-    },
-  });
+  const { mutate: createZendeskConnector, isPending } =
+    api.connectors.create.useMutation({
+      onSuccess: () => {
+        router.push("/connectors");
+        router.refresh();
+      },
+    });
 
   return (
     <form className="flex flex-col gap-2">
       <div>
         <label>Name</label>
-        <input
-          className="w-full rounded-md border border-gray-700 bg-transparent p-2 -outline-offset-1 outline-orange-500 focus:outline-double"
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           type="text"
@@ -43,20 +45,18 @@ export function CreateConnectorForm({
 
       <div className="mb-2 mt-2 flex flex-col">
         <label>Collection</label>
-        <select
-          value={collectionId}
-          onChange={(e) => setCollectionId(e.target.value)}
-          className="rounded-md border border-gray-700 bg-transparent p-2 outline-offset-1 outline-orange-500 focus:outline-double"
-        >
-          {collections.map((collection) => (
-            <option key={collection.id} value={collection.id}>
-              {collection.name}
-            </option>
-          ))}
-        </select>
+        <Select
+          items={collections.map((collection) => ({
+            value: collection.id,
+            label: collection.name,
+          }))}
+          defaultValue={collectionId}
+          onChange={(value) => setCollectionId(value as string)}
+        />
       </div>
 
       <Button
+        isLoading={isPending}
         type="button"
         className="ml-auto"
         onClick={() =>
@@ -68,7 +68,6 @@ export function CreateConnectorForm({
             selectedArticles,
           })
         }
-        // className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
       >
         Create Zendesk Connector
       </Button>

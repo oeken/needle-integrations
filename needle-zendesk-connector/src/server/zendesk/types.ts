@@ -32,3 +32,32 @@ export interface ZendeskErrorResponse {
   error: string;
   error_description: string;
 }
+
+// Add type interfaces
+export interface ZendeskTicketResponse {
+  tickets: ZendeskTicket[];
+  next_page: string | null;
+  count: number;
+}
+
+export interface ZendeskArticleResponse {
+  articles: ZendeskArticle[];
+  next_page: string | null;
+  count: number;
+}
+
+export interface FetchOptions {
+  maxPages?: number;
+  delay?: number;
+  pageSize?: number; // Add pageSize option
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  metadata: {
+    totalCount: number;
+    pageCount: number;
+    hasMore: boolean;
+    totalPages: number;
+  };
+}

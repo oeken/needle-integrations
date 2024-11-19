@@ -1,34 +1,12 @@
 import { env } from "~/env";
-import { type ZendeskTicket, type ZendeskArticle } from "./types";
-
-// Add type interfaces
-interface ZendeskTicketResponse {
-  tickets: ZendeskTicket[];
-  next_page: string | null;
-  count: number;
-}
-
-interface ZendeskArticleResponse {
-  articles: ZendeskArticle[];
-  next_page: string | null;
-  count: number;
-}
-
-interface FetchOptions {
-  maxPages?: number;
-  delay?: number;
-  pageSize?: number; // Add pageSize option
-}
-
-interface PaginatedResponse<T> {
-  items: T[];
-  metadata: {
-    totalCount: number;
-    pageCount: number;
-    hasMore: boolean;
-    totalPages: number;
-  };
-}
+import {
+  type ZendeskTicket,
+  type ZendeskArticle,
+  type FetchOptions,
+  type PaginatedResponse,
+  type ZendeskArticleResponse,
+  type ZendeskTicketResponse,
+} from "./types";
 
 export const createZendeskService = (accessToken: string) => {
   const baseUrl = `https://${env.NEXT_PUBLIC_ZENDESK_SUBDOMAIN}.zendesk.com`;
@@ -136,9 +114,39 @@ export const createZendeskService = (accessToken: string) => {
     return { tickets, articles };
   };
 
+  // Get all open tickets
+  // await zendeskService.searchTickets("status:open");
+
+  // Get all tickets created in the last 30 days
+  // await zendeskService.searchTickets("created>30days");
+
+  // Get all high-priority tickets
+  // await zendeskService.searchTickets("priority:high");
+
+  // Get all tickets assigned to a specific user
+  // await zendeskService.searchTickets("assignee:user@example.com");
+
+  // Combine multiple criteria
+  // await zendeskService.searchTickets("status:open priority:high created>30days");
+
+  const searchTickets = async (
+    query: string,
+    options?: FetchOptions,
+  ): Promise<PaginatedResponse<ZendeskTicket>> => {
+    const encodedQuery = encodeURIComponent(query);
+    return fetchAllPages<ZendeskTicket>(
+      `${baseUrl}/api/v2/search.json?query=type:ticket ${encodedQuery}`,
+      {
+        delay: 100,
+        ...options,
+      },
+    );
+  };
+
   return {
     fetchTickets,
     fetchArticles,
     fetchAll,
+    searchTickets,
   };
 };

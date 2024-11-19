@@ -61,7 +61,7 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
   }
 
   // Fetch required data
-  const { tickets, articles } = await api.zendesk.getData({
+  const { tickets, articles } = await api.connectors.getData({
     accessToken,
   });
 

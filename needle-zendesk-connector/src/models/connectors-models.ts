@@ -1,6 +1,11 @@
 import { z } from "zod";
 
-// Define the ticket and article schemas based on types.ts interfaces
+export const ZendeskResponseSchema = z.object({
+  accessToken: z.string(),
+  pageSize: z.number().optional(),
+  maxPages: z.number().optional(),
+});
+
 export const ZendeskTicketSchema = z.object({
   id: z.number(),
   url: z.string(),
