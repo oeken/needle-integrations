@@ -2,8 +2,11 @@ import { z } from "zod";
 
 export const ZendeskResponseSchema = z.object({
   accessToken: z.string(),
+  organizationId: z.number().optional(),
   pageSize: z.number().optional(),
   maxPages: z.number().optional(),
+  fetchArticles: z.boolean().optional(),
+  fetchTickets: z.boolean().optional(),
 });
 
 export const ZendeskTicketSchema = z.object({
@@ -13,7 +16,6 @@ export const ZendeskTicketSchema = z.object({
   description: z.string(),
   status: z.string(),
   created_at: z.string(),
-  priority: z.string(),
 });
 
 export const ZendeskArticleSchema = z.object({
@@ -30,7 +32,9 @@ export const CreateConnectorRequestSchema = z.object({
   collectionId: z.string(),
   selectedTickets: z.array(ZendeskTicketSchema),
   selectedArticles: z.array(ZendeskArticleSchema),
-  credentials: z.string(), // For storing the Zendesk access token
+  credentials: z.string(),
+  organizationId: z.number(),
+  subdomain: z.string(),
 });
 
 export type CreateConnectorRequest = z.infer<

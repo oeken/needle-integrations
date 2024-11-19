@@ -79,7 +79,7 @@ export function ZendeskResourceInfo() {
       title: "Tickets",
       icon: <InfoCircleIcon />,
       description:
-        "Support tickets and their updates from your Zendesk account will be synchronized to Needle. If a ticket is updated or new comments are added, changes will be reflected in Needle.",
+        "Support tickets and their updates from your Zendesk account will be synchronized to Needle. If a ticket is updated, changes will be reflected in Needle.",
     },
     {
       title: "Articles",

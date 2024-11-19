@@ -22,3 +22,9 @@ export const filesTable = createTable("files", {
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
 });
+
+export const zendeskConnectorsTable = createTable("zendesk_connectors", {
+  connectorId: varchar("connector_id", { length: 256 }).primaryKey(),
+  subdomain: varchar("subdomain", { length: 256 }).notNull(),
+  orgId: bigint("org_id", { mode: "number" }).notNull(),
+});

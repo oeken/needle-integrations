@@ -40,9 +40,27 @@ export const connectorsRouter = createTRPCRouter({
 
   getData: procedure.input(ZendeskResponseSchema).query(async ({ input }) => {
     const zendeskService = createZendeskService(input.accessToken);
-    return zendeskService.fetchAll({
-      pageSize: input.pageSize,
-      maxPages: input.maxPages,
-    });
+    if (input.organizationId) {
+      return zendeskService.searchByOrganization(
+        input.organizationId.toString(),
+        {
+          pageSize: input.pageSize,
+          maxPages: input.maxPages,
+          fetchArticles: input.fetchArticles,
+          fetchTickets: input.fetchTickets,
+        },
+      );
+    }
+    return { tickets: { items: [] }, articles: { items: [] } };
   }),
+
+  getOrganizations: procedure
+    .input(ZendeskResponseSchema)
+    .query(async ({ input }) => {
+      const zendeskService = createZendeskService(input.accessToken);
+      return zendeskService.getOrganizations({
+        pageSize: input.pageSize,
+        maxPages: input.maxPages,
+      });
+    }),
 });

@@ -4,17 +4,13 @@ import { env } from "~/env";
 import { api } from "~/trpc/server";
 import { listCollections } from "@needle-ai/needle-sdk";
 import { getSession } from "~/utils/session-utils";
-
 import { ZendeskResourcesProvider } from "~/app/_components/providers/ZendeskResourcesProvider";
-import { ResourceSelectionDialog } from "~/app/_components/zendesk/ResourceSelectionDialog";
-import { SelectedResources } from "~/app/_components/zendesk/SelectedResources";
-import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
 import { Header } from "~/app/_components/atoms/Header";
 import { Footer } from "~/app/_components/atoms/Footer";
 import { ZendeskSubdomainForm } from "~/app/_components/zendesk/ZendeskSubdomainForm";
 import { ZendeskConnectorHeader } from "~/app/_components/zendesk/ZendeskConnectorHeader";
-import { ZendeskResourceInfo } from "~/app/_components/zendesk/ZendeskResourceInfo";
 import { ZENDESK_SCOPES } from "~/utils/zendesk";
+import { ZendeskOrganizationPreview } from "~/app/_components/zendesk/ZendeskOrganizationPreview";
 
 interface PageProps {
   searchParams: {
@@ -44,6 +40,8 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
   const { user, session } = await getSession();
   const { state: accessToken, subdomain } = searchParams;
 
+  console.log({ subdomain });
+
   // Handle initial state
   if (!accessToken && !subdomain) {
     return <ZendeskSubdomainForm user={user} />;
@@ -58,10 +56,13 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
     return redirect("/error?message=missing-access-token");
   }
 
-  // Fetch required data
-  const { tickets, articles } = await api.connectors.getData({
+  const { items: organizations } = await api.connectors.getOrganizations({
     accessToken,
+    // maxPages: 1,
+    // pageSize: 1,
   });
+
+  console.log(organizations);
 
   const collections = await listCollections(session.id);
 
@@ -70,19 +71,12 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
       <Header user={user} />
       <ZendeskConnectorHeader />
       <ZendeskResourcesProvider
-        tickets={tickets.items}
-        articles={articles.items}
+        organizations={organizations}
+        credentials={accessToken}
       >
         <main className="mx-auto flex w-full flex-col px-4 xl:max-w-[50%]">
           <div className="my-8 flex flex-col">
-            <span className="mb-2 text-zinc-500">
-              Please select Zendesk tickets and articles to track. You can
-              manage which items you want to sync with Needle.
-            </span>
-            <ResourceSelectionDialog />
-            <SelectedResources />
-            <ZendeskResourceInfo />
-            <CreateConnectorForm
+            <ZendeskOrganizationPreview
               collections={collections}
               credentials={accessToken}
             />

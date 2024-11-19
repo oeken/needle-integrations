@@ -17,11 +17,6 @@ export interface ZendeskArticle {
   created_at: string;
 }
 
-export interface ZendeskResponse {
-  tickets: ZendeskTicket[];
-  articles: ZendeskArticle[];
-}
-
 export interface ZendeskTokenResponse {
   access_token: string;
   token_type: string;
@@ -33,23 +28,10 @@ export interface ZendeskErrorResponse {
   error_description: string;
 }
 
-// Add type interfaces
-export interface ZendeskTicketResponse {
-  tickets: ZendeskTicket[];
-  next_page: string | null;
-  count: number;
-}
-
-export interface ZendeskArticleResponse {
-  articles: ZendeskArticle[];
-  next_page: string | null;
-  count: number;
-}
-
 export interface FetchOptions {
   maxPages?: number;
   delay?: number;
-  pageSize?: number; // Add pageSize option
+  pageSize?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -61,3 +43,46 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+export type ZendeskOrganization = {
+  id: number;
+  name: string;
+  url: string;
+};
+
+// Updated base response interface to handle search endpoint
+export interface BaseZendeskResponse {
+  count?: number;
+  next_page?: string | null;
+  previous_page?: string | null;
+  results?: Array<unknown>; // For search endpoint results
+  links?: {
+    next?: string | null;
+    prev?: string | null;
+  };
+}
+
+// Response interfaces for specific endpoints
+export interface ZendeskTicketResponse extends BaseZendeskResponse {
+  tickets: ZendeskTicket[];
+}
+
+export interface ZendeskArticleResponse extends BaseZendeskResponse {
+  articles: ZendeskArticle[];
+}
+
+export interface ZendeskOrganizationResponse extends BaseZendeskResponse {
+  organizations: ZendeskOrganization[];
+}
+
+// Search response interface
+export interface ZendeskSearchResponse extends BaseZendeskResponse {
+  results: Array<ZendeskTicket | ZendeskArticle | ZendeskOrganization>;
+}
+
+// Combined type for all possible responses
+export type ZendeskResponse =
+  | ZendeskTicketResponse
+  | ZendeskArticleResponse
+  | ZendeskOrganizationResponse
+  | ZendeskSearchResponse;

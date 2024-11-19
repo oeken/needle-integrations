@@ -1,7 +1,7 @@
 export default {
-  appId: "buuxkah8cvc9",
-  appName: "needle-zendesk-connector",
-  appSlug: "dev-buuxkah8cvc9",
-  connectorType: "ext_dev_buuxkah8cvc9",
+  appId: "zst9v2eurjlf",
+  appName: "zendesk-needle",
+  appSlug: "dev-zst9v2eurjlf",
+  connectorType: "ext_dev_zst9v2eurjlf",
   connectorLogo: "",
 };

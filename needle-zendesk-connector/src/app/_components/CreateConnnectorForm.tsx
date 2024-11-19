@@ -21,7 +21,8 @@ export function CreateConnectorForm({
   const [name, setName] = useState("");
   const [collectionId, setCollectionId] = useState(collections[0]!.id);
 
-  const { selectedTickets, selectedArticles } = useZendeskResources();
+  const { tickets, articles, selectedOrganizationId, selectedSubdomain } =
+    useZendeskResources();
 
   const { mutate: createZendeskConnector, isPending } =
     api.connectors.create.useMutation({
@@ -64,8 +65,10 @@ export function CreateConnectorForm({
             name,
             collectionId,
             credentials,
-            selectedTickets,
-            selectedArticles,
+            selectedTickets: tickets,
+            selectedArticles: articles,
+            organizationId: selectedOrganizationId!,
+            subdomain: selectedSubdomain!,
           })
         }
       >
