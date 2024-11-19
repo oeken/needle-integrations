@@ -14,6 +14,7 @@ import { Footer } from "~/app/_components/atoms/Footer";
 import { ZendeskSubdomainForm } from "~/app/_components/zendesk/ZendeskSubdomainForm";
 import { ZendeskConnectorHeader } from "~/app/_components/zendesk/ZendeskConnectorHeader";
 import { ZendeskResourceInfo } from "~/app/_components/zendesk/ZendeskResourceInfo";
+import { ZENDESK_SCOPES } from "~/utils/zendesk";
 
 interface PageProps {
   searchParams: {
@@ -29,12 +30,9 @@ function handleZendeskOAuth(subdomain: string) {
 
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: env.NEXT_PUBLIC_ZENDESK_CLIENT_ID,
     redirect_uri: `${baseUrl}/api/zendesk/callback`,
-    scope: "read write",
-    subdomain,
-    access_type: "offline",
-    prompt: "consent",
+    client_id: env.NEXT_PUBLIC_ZENDESK_CLIENT_ID,
+    scope: ZENDESK_SCOPES.join(" "),
   });
 
   return redirect(

@@ -32,12 +32,10 @@ export async function exchangeCodeForTokens(
     body: JSON.stringify({
       grant_type: "authorization_code",
       code,
-      redirect_uri: redirectUri,
       client_id: env.NEXT_PUBLIC_ZENDESK_CLIENT_ID,
       client_secret: env.ZENDESK_SECRET,
+      redirect_uri: redirectUri,
       scope: ZENDESK_SCOPES.join(" "),
-      prompt: "consent",
-      response_type: "token id_token",
     }),
   });
 
