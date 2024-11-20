@@ -6,7 +6,6 @@ import { ZendeskResourceInfo } from "./ZendeskResourceInfo";
 import { CreateConnectorForm } from "../CreateConnnectorForm";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { formatDateTime } from "~/utils/format-date-time";
-import { MultiSelect } from "../atoms/MultiSelect";
 
 export function ZendeskOrganizationPreview({
   collections,
@@ -55,7 +54,6 @@ export function ZendeskOrganizationPreview({
         </div>
       </div>
 
-      {/* Tickets Preview Section */}
       <div className="space-y-2">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-medium">
@@ -88,7 +86,6 @@ export function ZendeskOrganizationPreview({
         )}
       </div>
 
-      {/* Articles Preview Section */}
       <div className="space-y-2">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-medium">

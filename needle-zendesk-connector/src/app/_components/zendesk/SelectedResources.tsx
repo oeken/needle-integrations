@@ -22,7 +22,6 @@ export function SelectedResources() {
 
   return (
     <div className="mt-8 grid grid-cols-1 grid-rows-2 gap-4 md:grid-cols-2 md:grid-rows-1">
-      {/* Tracked Tickets */}
       <div>
         <h3 className="text-xl font-semibold tracking-tight">Track Tickets</h3>
         <div className="flex max-h-[40vh] min-h-48 flex-col overflow-y-auto rounded border p-2 shadow-sm dark:border-zinc-700">
@@ -59,7 +58,6 @@ export function SelectedResources() {
         </div>
       </div>
 
-      {/* Tracked Articles */}
       <div>
         <h3 className="text-xl font-semibold tracking-tight">Track Articles</h3>
         <div className="flex max-h-[40vh] min-h-48 flex-col overflow-y-auto rounded border p-2 shadow-sm dark:border-zinc-700">

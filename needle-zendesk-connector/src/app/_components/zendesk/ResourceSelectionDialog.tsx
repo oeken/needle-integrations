@@ -5,7 +5,6 @@ import { Dialog } from "../atoms/Dialog";
 import { useZendeskResources } from "../providers/ZendeskResourcesProvider";
 import type { ZendeskTicket, ZendeskArticle } from "~/server/zendesk/types";
 import { Button } from "../atoms/Button";
-import { Divider } from "../atoms/Divider";
 
 export function ResourceSelectionDialog() {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +64,6 @@ export function ResourceSelectionDialog() {
         onOpenChange={handleOpenChange}
       >
         <div className="mt-8 grid grid-cols-2 gap-6">
-          {/* Tickets Selection */}
           <div className="">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">
@@ -139,7 +137,6 @@ export function ResourceSelectionDialog() {
             </div>
           </div>
 
-          {/* Articles Selection */}
           <div className="">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold text-zinc-900 dark:text-white">

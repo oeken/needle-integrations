@@ -42,12 +42,10 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
 
   console.log({ subdomain });
 
-  // Handle initial state
   if (!accessToken && !subdomain) {
     return <ZendeskSubdomainForm user={user} />;
   }
 
-  // Handle OAuth flow
   if (!accessToken && subdomain) {
     return handleZendeskOAuth(subdomain);
   }
@@ -58,11 +56,7 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
 
   const { items: organizations } = await api.connectors.getOrganizations({
     accessToken,
-    // maxPages: 1,
-    // pageSize: 1,
   });
-
-  console.log(organizations);
 
   const collections = await listCollections(session.id);
 

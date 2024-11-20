@@ -27,7 +27,7 @@ type DbFile = {
   originId: number;
   url: string;
   title: string;
-  type: "ticket" | "article";
+  type: "ticket" | "article" | "comments"; // Add "comments" type
   createdAt: Date;
 };
 
@@ -75,7 +75,7 @@ type FileInsert = {
   originId: number;
   url: string;
   title: string;
-  type: "ticket" | "article";
+  type: "ticket" | "article" | "comments";
   createdAt: Date;
   organizationId: number;
 };
@@ -104,17 +104,33 @@ export async function createZendeskConnector(
   );
 
   const filesToInsert: FileInsert[] = [
-    ...selectedTickets.map((ticket) => ({
-      ndlConnectorId: connector.id,
-      originId: ticket.id,
-      url: ticket.url,
-      title: ticket.subject,
-      type: "ticket" as const,
-      createdAt: new Date(ticket.created_at),
-      organizationId,
-    })),
+    // For each ticket, create two entries: ticket and comments
+    ...selectedTickets.flatMap((ticket) => [
+      {
+        ndlConnectorId: connector.id,
+        ndlFileId: createNeedleFileId(),
+        originId: ticket.id,
+        url: ticket.url,
+        title: ticket.subject,
+        type: "ticket" as const,
+        createdAt: new Date(ticket.created_at),
+        organizationId,
+      },
+      {
+        ndlConnectorId: connector.id,
+        ndlFileId: createNeedleFileId(),
+        originId: ticket.id,
+        url: ticket.url.replace(".json", "/comments.json"),
+        title: `${ticket.subject} - Comments`,
+        type: "comments" as const,
+        createdAt: new Date(ticket.created_at),
+        organizationId,
+      },
+    ]),
+    // Articles remain unchanged
     ...selectedArticles.map((article) => ({
       ndlConnectorId: connector.id,
+      ndlFileId: createNeedleFileId(),
       originId: article.id,
       url: article.html_url,
       title: article.title,
@@ -124,6 +140,8 @@ export async function createZendeskConnector(
     })),
   ];
 
+  console.log({ filesToInsert });
+
   // Wrap all DB operations in a transaction
   await db.transaction(async (tx) => {
     // Insert connector details into zendeskConnectorsTable
@@ -131,6 +149,8 @@ export async function createZendeskConnector(
       connectorId: connector.id,
       subdomain,
       orgId: organizationId,
+      includeTickets: selectedTickets.length > 0,
+      includeArticles: selectedArticles.length > 0,
     });
 
     // Insert files
@@ -178,15 +198,20 @@ export async function runZendeskConnector(
   { connectorId }: { connectorId: string },
   session?: Session,
 ) {
+  console.log("Starting runZendeskConnector with connectorId:", connectorId);
+
   // Get credentials if session exists
   let accessToken = "";
 
   if (session) {
+    console.log("Session found, getting credentials");
     const { credentials } = await getConnector(connectorId, session.id);
     accessToken = credentials ?? "";
+    console.log("Got access token:", accessToken ? "Present" : "Missing");
   }
 
   // Get connector details from zendeskConnectorsTable
+  console.log("Fetching connector details from DB");
   const connectorDetails = await db
     .select()
     .from(zendeskConnectorsTable)
@@ -194,32 +219,52 @@ export async function runZendeskConnector(
     .then((rows) => rows[0]);
 
   if (!connectorDetails) {
+    console.error(`No Zendesk connector found for ID: ${connectorId}`);
     throw new Error(`No Zendesk connector found for ID: ${connectorId}`);
   }
 
-  const { orgId: organizationId, subdomain } = connectorDetails;
-
-  console.log({ organizationId, accessToken, subdomain });
+  const {
+    orgId: organizationId,
+    subdomain,
+    includeTickets,
+    includeArticles,
+  } = connectorDetails;
+  console.log("Found connector details:", { organizationId, subdomain });
+  console.log("Using access token:", accessToken ? "Present" : "Missing");
 
   // Rest of the function remains the same...
+  console.log("Fetching current files from DB");
   const currentFiles = await db
     .select()
     .from(filesTable)
     .where(eq(filesTable.ndlConnectorId, connectorId));
 
   const currentTickets = currentFiles.filter(
-    (f) => f.type === "ticket",
+    (f) => f.type === "ticket" || f.type === "comments",
   ) as DbFile[];
   const currentArticles = currentFiles.filter(
     (f) => f.type === "article",
   ) as DbFile[];
+  console.log("Current files count:", {
+    tickets: currentTickets.length,
+    articles: currentArticles.length,
+  });
 
   // 2. Get live data from Zendesk
+  console.log("Creating Zendesk service and fetching live data");
   const zendeskService = createZendeskService(accessToken, subdomain);
   const { tickets: liveTickets, articles: liveArticles } =
-    await zendeskService.searchByOrganization(organizationId.toString());
+    await zendeskService.searchByOrganization(organizationId.toString(), {
+      fetchTickets: includeTickets,
+      fetchArticles: includeArticles,
+    });
+  console.log("Live data count:", {
+    tickets: liveTickets?.items.length ?? 0,
+    articles: liveArticles?.items.length ?? 0,
+  });
 
   // 3. Compute diffs
+  console.log("Computing diffs");
   const ticketsDiff = liveTickets
     ? computeDiff(currentTickets, liveTickets.items)
     : { create: [], update: [], delete: currentTickets };
@@ -228,21 +273,51 @@ export async function runZendeskConnector(
     ? computeDiff(currentArticles, liveArticles.items)
     : { create: [], update: [], delete: currentArticles };
 
+  console.log("Diff results:", {
+    tickets: {
+      create: ticketsDiff.create.length,
+      update: ticketsDiff.update.length,
+      delete: ticketsDiff.delete.length,
+    },
+    articles: {
+      create: articlesDiff.create.length,
+      update: articlesDiff.update.length,
+      delete: articlesDiff.delete.length,
+    },
+  });
+
   // 4. Execute database operations
   // 4a. Create new entries
   if (ticketsDiff.create.length || articlesDiff.create.length) {
+    console.log("Creating new entries in DB");
     await db.insert(filesTable).values([
-      ...ticketsDiff.create.map((ticket) => ({
-        ndlConnectorId: connectorId,
-        originId: (ticket as ZendeskTicket).id,
-        url: (ticket as ZendeskTicket).url,
-        title: (ticket as ZendeskTicket).subject,
-        type: "ticket" as const,
-        createdAt: new Date((ticket as ZendeskTicket).created_at),
-        organizationId,
-      })),
+      // For each new ticket, create both ticket and comments entries
+      ...ticketsDiff.create.flatMap((ticket) => [
+        {
+          ndlConnectorId: connectorId,
+          ndlFileId: createNeedleFileId(),
+          originId: (ticket as ZendeskTicket).id,
+          url: (ticket as ZendeskTicket).url,
+          title: (ticket as ZendeskTicket).subject,
+          type: "ticket" as const,
+          createdAt: new Date((ticket as ZendeskTicket).created_at),
+          organizationId,
+        },
+        {
+          ndlConnectorId: connectorId,
+          ndlFileId: createNeedleFileId(),
+          originId: (ticket as ZendeskTicket).id,
+          url: (ticket as ZendeskTicket).url.replace(".json", "/comments.json"),
+          title: `${(ticket as ZendeskTicket).subject} - Comments`,
+          type: "comments" as const,
+          createdAt: new Date((ticket as ZendeskTicket).created_at),
+          organizationId,
+        },
+      ]),
+      // Articles remain unchanged
       ...articlesDiff.create.map((article) => ({
         ndlConnectorId: connectorId,
+        ndlFileId: createNeedleFileId(),
         originId: (article as ZendeskArticle).id,
         url: (article as ZendeskArticle).html_url,
         title: (article as ZendeskArticle).title,
@@ -254,15 +329,39 @@ export async function runZendeskConnector(
   }
 
   // 4b. Update changed entries
+  console.log("Updating changed entries");
   for (const ticket of ticketsDiff.update) {
     if ("subject" in ticket) {
-      await db
-        .update(filesTable)
-        .set({
-          title: ticket.subject,
-          url: ticket.url,
-        })
-        .where(eq(filesTable.originId, ticket.id));
+      // Wrap both updates in a transaction
+      await db.transaction(async (tx) => {
+        // Update ticket entry
+        await tx
+          .update(filesTable)
+          .set({
+            title: ticket.subject,
+            url: ticket.url,
+          })
+          .where(
+            and(
+              eq(filesTable.originId, ticket.id),
+              eq(filesTable.type, "ticket"),
+            ),
+          );
+
+        // Update comments entry
+        await tx
+          .update(filesTable)
+          .set({
+            title: `${ticket.subject} - Comments`,
+            url: ticket.url.replace(".json", "/comments.json"),
+          })
+          .where(
+            and(
+              eq(filesTable.originId, ticket.id),
+              eq(filesTable.type, "comments"),
+            ),
+          );
+      });
     }
   }
 
@@ -285,6 +384,7 @@ export async function runZendeskConnector(
   ];
 
   if (deleteIds.length > 0) {
+    console.log(`Deleting ${deleteIds.length} entries`);
     await db
       .delete(filesTable)
       .where(
@@ -296,19 +396,37 @@ export async function runZendeskConnector(
   }
 
   // 5. Send RunDescriptor to Needle
+  console.log("Preparing connector run descriptor");
   const descriptor: ConnectorRunDescriptor = {
     create: [],
     update: [],
     delete: [],
   };
 
-  // Add new files
+  // 5. Update descriptor creation
   for (const file of [...ticketsDiff.create, ...articlesDiff.create]) {
-    descriptor.create.push({
-      id: createNeedleFileId(),
-      url: "subject" in file ? file.url : file.html_url,
-      type: "subject" in file ? "text/plain" : "text/html",
-    });
+    if ("subject" in file) {
+      // For tickets, create two entries
+      descriptor.create.push(
+        {
+          id: createNeedleFileId(),
+          url: file.url,
+          type: "text/plain",
+        },
+        {
+          id: createNeedleFileId(),
+          url: file.url.replace(".json", "/comments.json"),
+          type: "text/plain",
+        },
+      );
+    } else {
+      // For articles, create one entry
+      descriptor.create.push({
+        id: createNeedleFileId(),
+        url: file.html_url,
+        type: "text/html",
+      });
+    }
   }
 
   // Add updated files
@@ -326,5 +444,13 @@ export async function runZendeskConnector(
     }
   }
 
+  console.log("Final descriptor:", {
+    create: descriptor.create.length,
+    update: descriptor.update.length,
+    delete: descriptor.delete.length,
+  });
+
+  console.log("Publishing connector run");
   await publishConnectorRun(connectorId, descriptor);
+  console.log("Connector run completed successfully");
 }

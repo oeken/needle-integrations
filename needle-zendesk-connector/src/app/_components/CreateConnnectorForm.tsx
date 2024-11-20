@@ -32,6 +32,8 @@ export function CreateConnectorForm({
       },
     });
 
+  console.log({ tickets, articles });
+
   return (
     <form className="flex flex-col gap-2">
       <div>
@@ -43,7 +45,6 @@ export function CreateConnectorForm({
           placeholder="Enter connector name"
         />
       </div>
-
       <div className="mb-2 mt-2 flex flex-col">
         <label>Collection</label>
         <Select

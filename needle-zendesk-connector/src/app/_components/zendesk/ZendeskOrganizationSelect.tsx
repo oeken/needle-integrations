@@ -30,7 +30,7 @@ export function ZendeskOrganizationSelect() {
     setSelectedTypes,
     selectedTypes,
   } = useZendeskResources();
-  // Initialize with selectedTypes instead of empty array
+
   const [selectedContentTypes, setSelectedContentTypes] = useState<
     MultiSelectItem<ZendeskType>[]
   >(() => {
@@ -38,7 +38,6 @@ export function ZendeskOrganizationSelect() {
   });
   const [orgId, setOrgId] = useState<number>();
 
-  // Update effect to handle both initial mount and subsequent updates
   useEffect(() => {
     const selectedItems = ZENDESK_TYPES.filter((item) =>
       selectedTypes.includes(item.value),
