@@ -54,6 +54,8 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
     return redirect("/error?message=missing-access-token");
   }
 
+  console.log(accessToken);
+
   const { items: organizations } = await api.connectors.getOrganizations({
     accessToken,
   });

@@ -16,6 +16,7 @@ export const ZendeskTicketSchema = z.object({
   description: z.string(),
   status: z.string(),
   created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const ZendeskArticleSchema = z.object({
@@ -25,6 +26,7 @@ export const ZendeskArticleSchema = z.object({
   title: z.string(),
   body: z.string(),
   created_at: z.string(),
+  updated_at: z.string(),
 });
 
 export const CreateConnectorRequestSchema = z.object({

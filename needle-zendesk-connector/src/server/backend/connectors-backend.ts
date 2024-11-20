@@ -19,6 +19,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { createZendeskService } from "../zendesk/service";
 import { type ZendeskArticle, type ZendeskTicket } from "../zendesk/types";
 
+import { type FileInsert } from "../db/schema";
+
 // Define types for diffing
 type DbFile = {
   id: number;
@@ -29,6 +31,7 @@ type DbFile = {
   title: string;
   type: "ticket" | "article" | "comments"; // Add "comments" type
   createdAt: Date;
+  updatedAt: Date; // Add this field
 };
 
 // Modify computeDiff to handle both DB and Zendesk types
@@ -43,42 +46,33 @@ function computeDiff(
   const update: (ZendeskTicket | ZendeskArticle)[] = [];
   const delete_: DbFile[] = [];
 
-  // Find items to create
+  // Find items to create or update
   for (const item of live) {
-    if (!currentMap.has(item.id)) {
+    const currentItem = currentMap.get(item.id);
+
+    if (!currentItem) {
+      // New item
       create.push(item);
+    } else {
+      // Compare timestamps
+      const liveUpdatedAt = new Date(item.updated_at);
+      const currentUpdatedAt = currentItem.updatedAt;
+
+      if (liveUpdatedAt > currentUpdatedAt) {
+        update.push(item);
+      }
     }
   }
 
-  // Find items to update or delete
+  // Find items to delete
   for (const item of current) {
     if (!liveMap.has(item.originId)) {
       delete_.push(item);
-    } else {
-      const liveItem = liveMap.get(item.originId)!;
-      const currentTitle = item.title;
-      const liveTitle =
-        "subject" in liveItem ? liveItem.subject : liveItem.title;
-
-      if (currentTitle !== liveTitle) {
-        update.push(liveItem);
-      }
     }
   }
 
   return { create, update, delete: delete_ };
 }
-
-// Type for database insertion
-type FileInsert = {
-  ndlConnectorId: string;
-  originId: number;
-  url: string;
-  title: string;
-  type: "ticket" | "article" | "comments";
-  createdAt: Date;
-  organizationId: number;
-};
 
 export async function createZendeskConnector(
   {
@@ -109,21 +103,23 @@ export async function createZendeskConnector(
       {
         ndlConnectorId: connector.id,
         ndlFileId: createNeedleFileId(),
-        originId: ticket.id,
-        url: ticket.url,
-        title: ticket.subject,
+        originId: (ticket as ZendeskTicket).id,
+        url: (ticket as ZendeskTicket).url,
+        title: (ticket as ZendeskTicket).subject,
         type: "ticket" as const,
-        createdAt: new Date(ticket.created_at),
+        createdAt: new Date((ticket as ZendeskTicket).created_at),
+        updatedAt: new Date((ticket as ZendeskTicket).updated_at),
         organizationId,
       },
       {
         ndlConnectorId: connector.id,
         ndlFileId: createNeedleFileId(),
-        originId: ticket.id,
-        url: ticket.url.replace(".json", "/comments.json"),
-        title: `${ticket.subject} - Comments`,
+        originId: (ticket as ZendeskTicket).id,
+        url: (ticket as ZendeskTicket).url.replace(".json", "/comments.json"),
+        title: `${(ticket as ZendeskTicket).subject} - Comments`,
         type: "comments" as const,
-        createdAt: new Date(ticket.created_at),
+        createdAt: new Date((ticket as ZendeskTicket).created_at),
+        updatedAt: new Date((ticket as ZendeskTicket).updated_at),
         organizationId,
       },
     ]),
@@ -131,11 +127,12 @@ export async function createZendeskConnector(
     ...selectedArticles.map((article) => ({
       ndlConnectorId: connector.id,
       ndlFileId: createNeedleFileId(),
-      originId: article.id,
-      url: article.html_url,
-      title: article.title,
+      originId: (article as ZendeskArticle).id,
+      url: (article as ZendeskArticle).html_url,
+      title: (article as ZendeskArticle).title,
       type: "article" as const,
-      createdAt: new Date(article.created_at),
+      createdAt: new Date((article as ZendeskArticle).created_at),
+      updatedAt: new Date((article as ZendeskArticle).updated_at),
       organizationId,
     })),
   ];
@@ -301,6 +298,7 @@ export async function runZendeskConnector(
           title: (ticket as ZendeskTicket).subject,
           type: "ticket" as const,
           createdAt: new Date((ticket as ZendeskTicket).created_at),
+          updatedAt: new Date((ticket as ZendeskTicket).updated_at),
           organizationId,
         },
         {
@@ -311,6 +309,7 @@ export async function runZendeskConnector(
           title: `${(ticket as ZendeskTicket).subject} - Comments`,
           type: "comments" as const,
           createdAt: new Date((ticket as ZendeskTicket).created_at),
+          updatedAt: new Date((ticket as ZendeskTicket).updated_at),
           organizationId,
         },
       ]),
@@ -323,6 +322,7 @@ export async function runZendeskConnector(
         title: (article as ZendeskArticle).title,
         type: "article" as const,
         createdAt: new Date((article as ZendeskArticle).created_at),
+        updatedAt: new Date((article as ZendeskArticle).updated_at),
         organizationId,
       })),
     ]);
@@ -332,7 +332,6 @@ export async function runZendeskConnector(
   console.log("Updating changed entries");
   for (const ticket of ticketsDiff.update) {
     if ("subject" in ticket) {
-      // Wrap both updates in a transaction
       await db.transaction(async (tx) => {
         // Update ticket entry
         await tx
@@ -340,6 +339,7 @@ export async function runZendeskConnector(
           .set({
             title: ticket.subject,
             url: ticket.url,
+            updatedAt: new Date(ticket.updated_at),
           })
           .where(
             and(
@@ -354,6 +354,7 @@ export async function runZendeskConnector(
           .set({
             title: `${ticket.subject} - Comments`,
             url: ticket.url.replace(".json", "/comments.json"),
+            updatedAt: new Date(ticket.updated_at),
           })
           .where(
             and(
@@ -365,15 +366,18 @@ export async function runZendeskConnector(
     }
   }
 
-  for (const article of articlesDiff.update) {
-    if ("title" in article) {
+  for (const item of articlesDiff.update) {
+    if ("title" in item) {
       await db
         .update(filesTable)
         .set({
-          title: article.title,
-          url: article.html_url,
+          title: item.title,
+          url: item.html_url,
+          updatedAt: new Date(item.updated_at), // Always use updated_at
         })
-        .where(eq(filesTable.originId, article.id));
+        .where(
+          and(eq(filesTable.originId, item.id), eq(filesTable.type, "article")),
+        );
     }
   }
 
@@ -403,7 +407,21 @@ export async function runZendeskConnector(
     delete: [],
   };
 
-  // 5. Update descriptor creation
+  // First handle deletions - Modified section
+  const filesToDelete = currentFiles.filter((file) =>
+    file.type === "ticket" || file.type === "comments"
+      ? ticketsDiff.delete.some((t) => t.originId === file.originId)
+      : articlesDiff.delete.some((a) => a.originId === file.originId),
+  );
+
+  for (const file of filesToDelete) {
+    if (file.ndlFileId) {
+      descriptor.delete.push({ id: file.ndlFileId });
+      console.log(`Adding file to delete: ${file.ndlFileId} (${file.type})`);
+    }
+  }
+
+  // Then handle creates
   for (const file of [...ticketsDiff.create, ...articlesDiff.create]) {
     if ("subject" in file) {
       // For tickets, create two entries
@@ -429,18 +447,37 @@ export async function runZendeskConnector(
     }
   }
 
-  // Add updated files
-  for (const file of [...ticketsDiff.update, ...articlesDiff.update]) {
-    const dbFile = currentFiles.find((f) => f.originId === file.id);
-    if (dbFile?.ndlFileId) {
-      descriptor.update.push({ id: dbFile.ndlFileId });
-    }
-  }
+  // Finally handle updates - but only for files that weren't deleted
+  const deletedIds = new Set(
+    ticketsDiff.delete.concat(articlesDiff.delete).map((f) => f.originId),
+  );
 
-  // Add deleted files
-  for (const file of ticketsDiff.delete.concat(articlesDiff.delete)) {
-    if (file.ndlFileId) {
-      descriptor.delete.push({ id: file.ndlFileId });
+  for (const file of [...ticketsDiff.update, ...articlesDiff.update]) {
+    // Skip if the file was deleted
+    if (deletedIds.has(file.id)) continue;
+
+    const dbFiles = currentFiles.filter((f) => f.originId === file.id);
+    console.log("Found DB files for update:", dbFiles);
+
+    for (const dbFile of dbFiles) {
+      if (dbFile?.ndlFileId) {
+        // Verify this file exists in Needle's system before adding to update
+        try {
+          // Log full file details
+          console.log("Attempting to update file:", {
+            id: dbFile.ndlFileId,
+            originId: dbFile.originId,
+            type: dbFile.type,
+            title: dbFile.title,
+          });
+          descriptor.update.push({ id: dbFile.ndlFileId });
+        } catch (error) {
+          console.error(
+            `Failed to add file ${dbFile.ndlFileId} to update:`,
+            error,
+          );
+        }
+      }
     }
   }
 
@@ -450,7 +487,34 @@ export async function runZendeskConnector(
     delete: descriptor.delete.length,
   });
 
-  console.log("Publishing connector run");
-  await publishConnectorRun(connectorId, descriptor);
-  console.log("Connector run completed successfully");
+  try {
+    // Send the descriptor to Needle first
+    console.log("Publishing connector run");
+    console.log("descriptor: ", descriptor);
+
+    await publishConnectorRun(connectorId, descriptor);
+
+    // Only after successful publish, delete from DB
+    const deleteIds = [
+      ...ticketsDiff.delete.map((t) => t.originId),
+      ...articlesDiff.delete.map((a) => a.originId),
+    ];
+
+    if (deleteIds.length > 0) {
+      console.log(`Deleting ${deleteIds.length} entries from database`);
+      await db
+        .delete(filesTable)
+        .where(
+          and(
+            eq(filesTable.ndlConnectorId, connectorId),
+            inArray(filesTable.originId, deleteIds),
+          ),
+        );
+    }
+
+    console.log("Connector run completed successfully");
+  } catch (error) {
+    console.error("Failed to process deletions:", error);
+    throw error;
+  }
 }

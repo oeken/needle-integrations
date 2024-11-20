@@ -22,6 +22,9 @@ export const filesTable = createTable("files", {
   createdAt: timestamp("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),
+  updatedAt: timestamp("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
 });
 
 export const zendeskConnectorsTable = createTable("zendesk_connectors", {
@@ -31,3 +34,18 @@ export const zendeskConnectorsTable = createTable("zendesk_connectors", {
   includeTickets: boolean("include_tickets").notNull().default(false),
   includeArticles: boolean("include_articles").notNull().default(false),
 });
+
+// Add type definitions for better type safety
+export type FileInsert = typeof filesTable.$inferInsert;
+export type FileSelect = typeof filesTable.$inferSelect;
+export type ZendeskConnectorInsert = typeof zendeskConnectorsTable.$inferInsert;
+export type ZendeskConnectorSelect = typeof zendeskConnectorsTable.$inferSelect;
+
+// Define the valid file types
+export const FileTypes = {
+  TICKET: "ticket",
+  ARTICLE: "article",
+  COMMENTS: "comments",
+} as const;
+
+export type FileType = (typeof FileTypes)[keyof typeof FileTypes];

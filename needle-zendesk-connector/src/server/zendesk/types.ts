@@ -5,6 +5,7 @@ export interface ZendeskTicket {
   description: string;
   status: string;
   created_at: string;
+  updated_at: string;
   priority: string;
 }
 
@@ -15,6 +16,7 @@ export interface ZendeskArticle {
   title: string;
   body: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ZendeskTokenResponse {

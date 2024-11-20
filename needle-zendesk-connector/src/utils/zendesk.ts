@@ -1,7 +1,7 @@
 import { env } from "~/env";
 import { type ZendeskTokenResponse } from "~/server/zendesk/types";
 
-export const ZENDESK_SCOPES = ["read"] as const;
+export const ZENDESK_SCOPES = ["read", "write"] as const;
 
 export function buildZendeskTokenUrl(subdomain: string): string {
   return `https://${subdomain}.zendesk.com/oauth/tokens`;
