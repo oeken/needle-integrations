@@ -6,7 +6,6 @@ export interface ZendeskTicket {
   status: string;
   created_at: string;
   updated_at: string;
-  priority: string;
 }
 
 export interface ZendeskArticle {
@@ -88,3 +87,23 @@ export type ZendeskResponse =
   | ZendeskArticleResponse
   | ZendeskOrganizationResponse
   | ZendeskSearchResponse;
+
+export type DbFile = {
+  id: number;
+  ndlConnectorId: string;
+  ndlFileId: string | null;
+  originId: number;
+  url: string;
+  title: string;
+  type: "ticket" | "article" | "comments";
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type DiffResult = {
+  create: (ZendeskTicket | ZendeskArticle)[];
+  update: (ZendeskTicket | ZendeskArticle)[];
+  delete: DbFile[];
+};
+
+export type FileIdMapping = Map<string, string>;

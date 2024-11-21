@@ -40,8 +40,6 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
   const { user, session } = await getSession();
   const { state: accessToken, subdomain } = searchParams;
 
-  console.log({ subdomain });
-
   if (!accessToken && !subdomain) {
     return <ZendeskSubdomainForm user={user} />;
   }
@@ -54,13 +52,10 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
     return redirect("/error?message=missing-access-token");
   }
 
-  console.log(accessToken);
-
+  const collections = await listCollections(session.id);
   const { items: organizations } = await api.connectors.getOrganizations({
     accessToken,
   });
-
-  const collections = await listCollections(session.id);
 
   return (
     <>
