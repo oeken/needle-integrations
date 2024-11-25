@@ -22,7 +22,6 @@ import {
   getCurrentFiles,
   handleDatabaseUpdates,
 } from "./zendesk-db";
-import { type DbFile } from "../zendesk/types";
 import { computeDiff } from "./diff-utils";
 
 export async function createZendeskConnector(
@@ -32,74 +31,24 @@ export async function createZendeskConnector(
   const connector = await createConnector(
     {
       name: params.name,
-      cronJob: "0 0 * * *",
-      cronJobTimezone: "Europe/Berlin",
+      cronJob: params.cronJob,
+      cronJobTimezone: params.cronJobTimezone,
       collectionIds: [params.collectionId],
       credentials: params.credentials,
     },
     session.id,
   );
 
-  const descriptor: ConnectorRunDescriptor = {
-    create: [],
-    update: [],
-    delete: [],
-  };
-  const fileIdMap = new Map<string, string>();
-
-  // Process tickets
-  for (const ticket of params.selectedTickets) {
-    const ticketFileId = createNeedleFileId();
-    const commentsFileId = createNeedleFileId();
-
-    fileIdMap.set(`ticket-${ticket.id}`, ticketFileId);
-    fileIdMap.set(`comments-${ticket.id}`, commentsFileId);
-
-    descriptor.create.push(
-      {
-        id: ticketFileId,
-        url: ticket.url,
-        type: "text/plain",
-      },
-      {
-        id: commentsFileId,
-        url: ticket.url.replace(".json", "/comments.json"),
-        type: "text/plain",
-      },
-    );
-  }
-
-  // Process articles
-  for (const article of params.selectedArticles) {
-    const articleFileId = createNeedleFileId();
-    fileIdMap.set(`article-${article.id}`, articleFileId);
-
-    descriptor.create.push({
-      id: articleFileId,
-      url: article.html_url,
-      type: "text/html",
-    });
-  }
-
-  await db.transaction(async (tx) => {
-    await tx.insert(zendeskConnectorsTable).values({
-      connectorId: connector.id,
-      subdomain: params.subdomain,
-      orgId: params.organizationId,
-      includeTickets: params.selectedTickets.length > 0,
-      includeArticles: params.selectedArticles.length > 0,
-    });
-
-    await handleDatabaseUpdates(
-      tx,
-      connector.id,
-      { create: params.selectedTickets, update: [], delete: [] },
-      { create: params.selectedArticles, update: [], delete: [] },
-      fileIdMap,
-    );
+  await db.insert(zendeskConnectorsTable).values({
+    connectorId: connector.id,
+    subdomain: params.subdomain,
+    orgId: params.organizationId,
+    includeTickets: params.selectedTickets.length > 0,
+    includeArticles: params.selectedArticles.length > 0,
   });
 
-  await publishConnectorRun(connector.id, descriptor);
+  await runZendeskConnector({ connectorId: connector.id }, session);
+
   return connector;
 }
 
@@ -121,10 +70,8 @@ export async function runZendeskConnector(
   const currentFiles = await getCurrentFiles(connectorId);
   const currentTickets = currentFiles.filter(
     (f) => f.type === "ticket" || f.type === "comments",
-  ) as DbFile[];
-  const currentArticles = currentFiles.filter(
-    (f) => f.type === "article",
-  ) as DbFile[];
+  );
+  const currentArticles = currentFiles.filter((f) => f.type === "article");
 
   const zendeskService = createZendeskService(
     accessToken,
@@ -153,80 +100,77 @@ export async function runZendeskConnector(
   };
   const fileIdMap = new Map<string, string>();
 
-  // Process creates
-  for (const ticket of ticketsDiff.create) {
-    if ("subject" in ticket) {
+  const createItems = [
+    ...ticketsDiff.create.map((item) => ({ type: "ticket", data: item })),
+    ...articlesDiff.create.map((item) => ({ type: "article", data: item })),
+  ];
+
+  for (const { type, data } of createItems) {
+    if (type === "ticket" && "subject" in data) {
       const ticketFileId = createNeedleFileId();
       const commentsFileId = createNeedleFileId();
-      fileIdMap.set(`ticket-${ticket.id}`, ticketFileId);
-      fileIdMap.set(`comments-${ticket.id}`, commentsFileId);
+      fileIdMap.set(`ticket-${data.id}`, ticketFileId);
+      fileIdMap.set(`comments-${data.id}`, commentsFileId);
 
       descriptor.create.push(
         {
           id: ticketFileId,
-          url: ticket.url,
+          url: data.url,
           type: "text/plain",
         },
         {
           id: commentsFileId,
-          url: ticket.url.replace(".json", "/comments.json"),
+          url: data.url.replace(".json", "/comments.json"),
           type: "text/plain",
         },
       );
-    }
-  }
-
-  for (const article of articlesDiff.create) {
-    if ("title" in article) {
+    } else if (type === "article" && "title" in data) {
       const articleFileId = createNeedleFileId();
-      fileIdMap.set(`article-${article.id}`, articleFileId);
+      fileIdMap.set(`article-${data.id}`, articleFileId);
 
       descriptor.create.push({
         id: articleFileId,
-        url: article.html_url,
+        url: data.html_url,
         type: "text/html",
       });
     }
   }
 
-  // Process updates
   for (const item of [...ticketsDiff.update, ...articlesDiff.update]) {
     const dbFiles = currentFiles.filter((f) => f.originId === item.id);
     for (const dbFile of dbFiles) {
       if (dbFile.ndlFileId) {
         descriptor.update.push({ id: dbFile.ndlFileId });
+        // Maintain fileIdMap for updates
+        fileIdMap.set(`${dbFile.type}-${item.id}`, dbFile.ndlFileId);
       }
     }
   }
 
-  // Process deletes
   const filesToDelete = currentFiles.filter((file) =>
     file.type === "ticket" || file.type === "comments"
       ? ticketsDiff.delete.some((t) => t.originId === file.originId)
       : articlesDiff.delete.some((a) => a.originId === file.originId),
   );
 
-  for (const file of filesToDelete) {
-    if (file.ndlFileId) {
-      descriptor.delete.push({ id: file.ndlFileId });
-    }
-  }
+  filesToDelete
+    .filter(
+      (file): file is typeof file & { ndlFileId: string } =>
+        file.ndlFileId !== null,
+    )
+    .forEach((file) => descriptor.delete.push({ id: file.ndlFileId }));
 
-  try {
-    await publishConnectorRun(connectorId, descriptor);
-    await db.transaction(async (tx) => {
-      await handleDatabaseUpdates(
-        tx,
-        connectorId,
-        ticketsDiff,
-        articlesDiff,
-        fileIdMap,
-      );
-    });
-  } catch (error) {
-    console.error("Failed to process connector run:", error);
-    throw error;
-  }
+  await publishConnectorRun(connectorId, descriptor);
+
+  await db.transaction(async (tx) => {
+    await handleDatabaseUpdates(
+      tx,
+      connectorId,
+      ticketsDiff,
+      articlesDiff,
+      fileIdMap,
+    );
+  });
 }
 
 export async function listZendeskConnectors(session: Session) {
@@ -239,12 +183,24 @@ export async function getZendeskConnector(
 ) {
   const connector = await getConnector(connectorId, session.id);
 
+  const [zendeskMetadata] = await db
+    .select()
+    .from(zendeskConnectorsTable)
+    .where(eq(zendeskConnectorsTable.connectorId, connectorId));
+
   const files = await db
     .select()
     .from(filesTable)
     .where(eq(filesTable.ndlConnectorId, connectorId));
 
-  return { ...connector, files };
+  return {
+    ...connector,
+    files,
+    subdomain: zendeskMetadata?.subdomain,
+    organizationId: zendeskMetadata?.orgId,
+    includeTickets: zendeskMetadata?.includeTickets,
+    includeArticles: zendeskMetadata?.includeArticles,
+  };
 }
 
 export async function deleteZendeskConnector(
@@ -252,6 +208,15 @@ export async function deleteZendeskConnector(
   session: Session,
 ) {
   const connector = await deleteConnector(connectorId, session.id);
-  await db.delete(filesTable).where(eq(filesTable.ndlConnectorId, connectorId));
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(filesTable)
+      .where(eq(filesTable.ndlConnectorId, connectorId));
+    await tx
+      .delete(zendeskConnectorsTable)
+      .where(eq(zendeskConnectorsTable.connectorId, connectorId));
+  });
+
   return connector;
 }

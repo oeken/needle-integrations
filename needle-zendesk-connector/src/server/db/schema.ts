@@ -18,7 +18,9 @@ export const filesTable = createTable("files", {
   originId: bigint("origin_id", { mode: "number" }).notNull(), // Changed from integer to bigint
   url: text("url").notNull(),
   title: text("title").notNull(),
-  type: varchar("type", { length: 50 }).notNull(), // 'ticket' or 'article' or 'comments'
+  type: varchar("type", { length: 50 })
+    .$type<"ticket" | "article" | "comments">()
+    .notNull(),
   createdAt: timestamp("created_at")
     .default(sql`CURRENT_TIMESTAMP`)
     .notNull(),

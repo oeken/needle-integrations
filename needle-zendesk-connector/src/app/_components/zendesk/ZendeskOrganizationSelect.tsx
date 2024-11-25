@@ -103,7 +103,7 @@ export function ZendeskOrganizationSelect() {
       </div>
       <Button
         onClick={handleSubmit}
-        className="mt-2 w-full text-center"
+        className="ml-auto"
         disabled={isSubmitDisabled}
       >
         Submit

@@ -37,6 +37,8 @@ export const CreateConnectorRequestSchema = z.object({
   credentials: z.string(),
   organizationId: z.number(),
   subdomain: z.string(),
+  cronJob: z.string(),
+  cronJobTimezone: z.string(),
 });
 
 export type CreateConnectorRequest = z.infer<

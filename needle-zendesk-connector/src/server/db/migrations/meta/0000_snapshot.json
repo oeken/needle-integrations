@@ -1,5 +1,5 @@
 {
-  "id": "b439553f-6eac-419b-969a-2a4463b99a5a",
+  "id": "e86f5daf-a7e8-469d-87b4-3def2ed9efa0",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -56,6 +56,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
         }
       },
       "indexes": {},
@@ -84,6 +91,20 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
+        },
+        "include_tickets": {
+          "name": "include_tickets",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "include_articles": {
+          "name": "include_articles",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {},

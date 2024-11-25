@@ -76,7 +76,7 @@ export function ZendeskOrganizationPreview({
                 </span>
               </div>
               <p className="line-clamp-2 text-sm text-zinc-600 dark:text-zinc-400">
-                Status: {ticket.status} • Priority: {ticket.priority}
+                Status: {ticket.status}
               </p>
               <p className="line-clamp-3 text-sm text-zinc-600 dark:text-zinc-400">
                 Description: {ticket.description}

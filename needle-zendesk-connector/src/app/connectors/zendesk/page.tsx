@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { env } from "~/env";
-import { api } from "~/trpc/server";
 import { listCollections } from "@needle-ai/needle-sdk";
 import { getSession } from "~/utils/session-utils";
 import { ZendeskResourcesProvider } from "~/app/_components/providers/ZendeskResourcesProvider";
@@ -53,18 +52,12 @@ export default async function ZendeskPage({ searchParams }: PageProps) {
   }
 
   const collections = await listCollections(session.id);
-  const { items: organizations } = await api.connectors.getOrganizations({
-    accessToken,
-  });
 
   return (
     <>
       <Header user={user} />
       <ZendeskConnectorHeader />
-      <ZendeskResourcesProvider
-        organizations={organizations}
-        credentials={accessToken}
-      >
+      <ZendeskResourcesProvider credentials={accessToken}>
         <main className="mx-auto flex w-full flex-col px-4 xl:max-w-[50%]">
           <div className="my-8 flex flex-col">
             <ZendeskOrganizationPreview

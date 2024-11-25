@@ -7,12 +7,15 @@ import {
   useEffect,
   useCallback,
 } from "react";
-import { api } from "~/trpc/react";
 import type {
   ZendeskTicket,
   ZendeskArticle,
   ZendeskOrganization,
 } from "~/server/zendesk/types";
+import {
+  useZendeskData,
+  useZendeskOrganizations,
+} from "~/server/zendesk/use-zendesk-data";
 
 type ZendeskType = "ticket" | "article";
 
@@ -38,13 +41,11 @@ const ZendeskResourcesContext =
 
 interface ZendeskResourcesProviderProps {
   children: React.ReactNode;
-  organizations: ZendeskOrganization[];
   credentials: string;
 }
 
 export function ZendeskResourcesProvider({
   children,
-  organizations,
   credentials,
 }: ZendeskResourcesProviderProps) {
   const [selectedTickets, setSelectedTickets] = useState<ZendeskTicket[]>([]);
@@ -62,18 +63,22 @@ export function ZendeskResourcesProvider({
   const [articles, setArticles] = useState<ZendeskArticle[]>([]);
 
   // Fetch data when organization is selected
-  const { data: resourcesData, isLoading: isLoadingResources } =
-    api.connectors.getData.useQuery(
-      {
-        accessToken: credentials,
-        organizationId: selectedOrganizationId!,
-        fetchArticles: selectedTypes.includes("article"),
-        fetchTickets: selectedTypes.includes("ticket"),
-      },
-      {
-        enabled: !!selectedOrganizationId,
-      },
-    );
+  const { data: resourcesData, isLoading: isLoadingResources } = useZendeskData(
+    credentials,
+    {
+      organizationId: selectedOrganizationId?.toString(),
+      fetchArticles: selectedTypes.includes("article"),
+      fetchTickets: selectedTypes.includes("ticket"),
+      pageSize: 100,
+      maxPages: 1,
+    },
+  );
+
+  const { data: { items: organizations } = { items: [] } } =
+    useZendeskOrganizations(credentials, {
+      pageSize: 100,
+      maxPages: 1,
+    });
 
   const resetSelections = useCallback(() => {
     setSelectedTickets([]);

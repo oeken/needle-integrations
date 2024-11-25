@@ -1,2 +1,0 @@
-ALTER TABLE "zendesk_connectors" ADD COLUMN "include_tickets" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-ALTER TABLE "zendesk_connectors" ADD COLUMN "include_articles" boolean DEFAULT false NOT NULL;
