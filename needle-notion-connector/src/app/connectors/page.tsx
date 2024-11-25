@@ -22,9 +22,9 @@ export default async function ConnectorsPage() {
             </h1>
             <Link
               className="rounded bg-orange-600 px-2 py-1 text-sm font-semibold hover:bg-orange-500"
-              href="/connectors/create"
+              href="/connectors/notion"
             >
-              New Connector
+              Connect Notion
             </Link>
           </div>
 

@@ -5,11 +5,18 @@ import { listCollections } from "@needle-ai/needle-sdk";
 
 import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
-import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
+import { redirect } from "next/navigation";
 
-export default async function CreateConnectorPage() {
+type NotionPageProps = { searchParams: { accessToken?: string } };
+
+export default async function NotionPage({ searchParams }: NotionPageProps) {
   const { user, session } = await getSession();
   const collections = await listCollections(session.id);
+  let error;
+
+  if (!searchParams.accessToken) {
+    redirect(process.env.NOTION_OAUTH_URL ?? "");
+  }
 
   return (
     <>
@@ -26,12 +33,7 @@ export default async function CreateConnectorPage() {
           <h1 className="text-5xl font-extrabold tracking-tight">
             Create Connector
           </h1>
-
-          <p className="my-4">
-            Enter the URLs of the files and target collection to be synced.
-          </p>
-
-          <CreateConnectorForm collections={collections} />
+          {error && <h2>Error: {error}</h2>}
         </div>
       </main>
 
