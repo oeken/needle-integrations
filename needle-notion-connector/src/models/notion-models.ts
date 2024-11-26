@@ -5,7 +5,7 @@ export const NotionTokenSchema = z.object({
   token_type: z.string(),
   bot_id: z.string().uuid(),
   workspace_name: z.string(),
-  workspace_icon: z.string(),
+  workspace_icon: z.string().nullable(),
   workspace_id: z.string().uuid(),
   owner: z.object({
     type: z.string(),
@@ -15,7 +15,7 @@ export const NotionTokenSchema = z.object({
       name: z.string(),
       avatar_url: z.string().url(),
       type: z.string(),
-      person: z.array(z.unknown()),
+      person: z.unknown(),
     }),
   }),
   duplicated_template_id: z.string().nullable(),
@@ -31,3 +31,11 @@ export const NotionErrorSchema = z.object({
 });
 
 export type NotionError = z.infer<typeof NotionErrorSchema>;
+
+export const NotionPageSchema = z.object({
+  id: z.string().uuid(),
+  last_edited_time: z.string().datetime(),
+  url: z.string().url(),
+});
+
+export type NotionPage = z.infer<typeof NotionPageSchema>;

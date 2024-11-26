@@ -15,6 +15,13 @@
       "when": 1732644621679,
       "tag": "0001_needy_mariko_yashida",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1732658739164,
+      "tag": "0002_square_abomination",
+      "breakpoints": true
     }
   ]
 }

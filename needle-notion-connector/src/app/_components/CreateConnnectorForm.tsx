@@ -6,18 +6,21 @@ import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
 import { type PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { NotionPageTable } from "./NotionPageTable";
+import { NotionPage, type NotionToken } from "~/models/notion-models";
 
 export function CreateConnectorForm({
   collections,
   pages,
+  token,
 }: {
   collections: Collection[];
   pages: PageObjectResponse[];
+  token: NotionToken;
 }) {
   const router = useRouter();
   const [collectionId, setCollectionId] = useState(collections[0]!.id);
 
-  const { mutate: createWebConnector } = api.connectors.create.useMutation({
+  const { mutate: createNotionConnector } = api.connectors.create.useMutation({
     onSuccess: () => {
       router.push("/connectors");
       router.refresh();
@@ -47,7 +50,17 @@ export function CreateConnectorForm({
 
       <button
         type="button"
-        onClick={() => console.log(pages)}
+        onClick={() =>
+          createNotionConnector({
+            collectionId,
+            notionToken: token,
+            notionPages: pages.map((p) => ({
+              id: p.id,
+              last_edited_time: p.last_edited_time,
+              url: p.url,
+            })),
+          })
+        }
         className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
       >
         Create Connector

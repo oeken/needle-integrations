@@ -49,6 +49,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
           <CreateConnectorForm
             collections={collections}
             pages={pages.results as PageObjectResponse[]}
+            token={token}
           />
         </div>
       </main>

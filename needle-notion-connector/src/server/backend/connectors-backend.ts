@@ -27,16 +27,17 @@ export async function createNotionConnector(
       cronJob: "0 0 * * *",
       cronJobTimezone: "Europe/Berlin",
       collectionIds: [request.collectionId],
-      credentials: "test credentials",
+      credentials: request.notionToken.access_token,
     },
     session.id,
   );
 
-  // const pagesToInsert = request.notionPages.map((url) => ({
-  //   ndlConnectorId: connector.id,
-  //   url,
-  // }));
-  // await db.insert(notionPagesTable).values(filesToInsert);
+  const pagesToInsert = request.notionPages.map((p) => ({
+    ndlConnectorId: connector.id,
+    url: p.url,
+    notionPageId: p.id,
+  }));
+  await db.insert(notionPagesTable).values(pagesToInsert);
 
   await runNotionConnector({ connectorId: connector.id });
 
