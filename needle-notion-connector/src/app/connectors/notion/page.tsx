@@ -6,6 +6,7 @@ import { listCollections } from "@needle-ai/needle-sdk";
 import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { redirect } from "next/navigation";
+import { env } from "~/env";
 
 type NotionPageProps = { searchParams: { accessToken?: string } };
 
@@ -15,7 +16,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
   let error;
 
   if (!searchParams.accessToken) {
-    redirect(process.env.NOTION_OAUTH_URL ?? "");
+    redirect(env.NOTION_OAUTH_URL);
   }
 
   return (

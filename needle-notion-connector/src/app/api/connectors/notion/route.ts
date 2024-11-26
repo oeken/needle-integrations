@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { fetchAccessToken } from "~/app/connectors/notion/actions";
+import { env } from "~/env";
 
 export async function GET(request: Request) {
   const code = new URL(request.url).searchParams.get("code");
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
 
   try {
     const accessToken = await fetchAccessToken(code);
-    const appHost = process.env.NEXT_APP_HOST ?? "";
+    const appHost = env.NEXT_PUBLIC_APP_HOST;
     return NextResponse.redirect(
       appHost + `/connectors/notion?accessToken=${accessToken}`,
     );

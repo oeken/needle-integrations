@@ -1,6 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { env } from "~/env";
 
 type TokenResponse = {
   access_token: string;
@@ -33,9 +34,9 @@ type ErrorResponse = {
 //  const NOTION_ACCESS_TOKEN = "notion_access_token";
 
 export async function fetchAccessToken(code: string): Promise<string> {
-  const clientId = process.env.NOTION_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.NOTION_OAUTH_CLIENT_SECRET;
-  const oauthUrl = process.env.NOTION_OAUTH_URL;
+  const clientId = env.NOTION_OAUTH_CLIENT_ID;
+  const clientSecret = env.NOTION_OAUTH_CLIENT_SECRET;
+  const oauthUrl = env.NOTION_OAUTH_URL;
   const redirectUri = new URLSearchParams(oauthUrl).get("redirect_uri");
 
   const response = await fetch("https://api.notion.com/v1/oauth/token", {

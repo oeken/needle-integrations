@@ -11,6 +11,9 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    NOTION_OAUTH_CLIENT_ID: z.string(),
+    NOTION_OAUTH_URL: z.string(),
+    NOTION_OAUTH_CLIENT_SECRET: z.string(),
   },
 
   /**
@@ -19,7 +22,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_APP_HOST: z.string().url(),
   },
 
   /**
@@ -29,7 +32,10 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    NOTION_OAUTH_CLIENT_ID: process.env.NOTION_OAUTH_CLIENT_ID,
+    NOTION_OAUTH_URL: process.env.NOTION_OAUTH_URL,
+    NOTION_OAUTH_CLIENT_SECRET: process.env.NOTION_OAUTH_CLIENT_SECRET,
+    NEXT_PUBLIC_APP_HOST: process.env.NEXT_PUBLIC_APP_HOST,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
