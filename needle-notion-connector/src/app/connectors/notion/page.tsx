@@ -8,14 +8,14 @@ import { Header } from "~/app/_components/atoms/Header";
 import { redirect } from "next/navigation";
 import { env } from "~/env";
 
-type NotionPageProps = { searchParams: { accessToken?: string } };
+type NotionPageProps = { searchParams: { token?: string } };
 
 export default async function NotionPage({ searchParams }: NotionPageProps) {
   const { user, session } = await getSession();
   const collections = await listCollections(session.id);
   let error;
 
-  if (!searchParams.accessToken) {
+  if (!searchParams.token) {
     redirect(env.NOTION_OAUTH_URL);
   }
 

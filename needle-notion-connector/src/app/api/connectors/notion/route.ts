@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const token = await fetchAccessToken(code);
     const appHost = env.NEXT_PUBLIC_APP_HOST;
     return NextResponse.redirect(
-      appHost + `/connectors/notion?accessToken=${token.access_token}`,
+      appHost + `/connectors/notion?token=${JSON.stringify(token)}`,
     );
   } catch (err: unknown) {
     if (err instanceof Error) {
