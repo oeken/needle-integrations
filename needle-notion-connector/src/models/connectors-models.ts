@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { NotionTokenSchema } from "./notion-models";
 
 export const CreateConnectorRequestSchema = z.object({
-  urls: z.array(z.string()),
   collectionId: z.string(),
+  notionToken: NotionTokenSchema,
+  // notionPages: z.array(NotionPageSchema)
 });
 
 export type CreateConnectorRequest = z.infer<

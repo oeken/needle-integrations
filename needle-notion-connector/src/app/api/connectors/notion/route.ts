@@ -9,10 +9,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const accessToken = await fetchAccessToken(code);
+    const token = await fetchAccessToken(code);
     const appHost = env.NEXT_PUBLIC_APP_HOST;
     return NextResponse.redirect(
-      appHost + `/connectors/notion?accessToken=${accessToken}`,
+      appHost + `/connectors/notion?accessToken=${token.access_token}`,
     );
   } catch (err: unknown) {
     if (err instanceof Error) {

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { verifyJwt } from "@needle-ai/needle-sdk";
 
-import { runWebConnector } from "~/server/backend/connectors-backend";
+import { runNotionConnector } from "~/server/backend/connectors-backend";
 import { getIdFromPath } from "~/utils/api-utils";
 
 // Run connector
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
   await verifyJwt(token);
   const connectorId = getIdFromPath(request, "connectors");
-  await runWebConnector({ connectorId });
+  await runNotionConnector({ connectorId });
 
   const body = { result: "OK" };
   return new NextResponse(JSON.stringify(body), {

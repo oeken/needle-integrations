@@ -14,11 +14,11 @@ import {
 } from "@needle-ai/needle-sdk";
 
 import { db } from "../db";
-import { filesTable } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { notionPagesTable } from "../db/schema";
 
-export async function createWebConnector(
-  { urls, collectionId }: CreateConnectorRequest,
+export async function createNotionConnector(
+  request: CreateConnectorRequest,
   session: Session,
 ) {
   const connector = await createConnector(
@@ -26,28 +26,28 @@ export async function createWebConnector(
       name: "Test Connector",
       cronJob: "0 0 * * *",
       cronJobTimezone: "Europe/Berlin",
-      collectionIds: [collectionId],
+      collectionIds: [request.collectionId],
       credentials: "test credentials",
     },
     session.id,
   );
 
-  const filesToInsert = urls.map((url) => ({
-    ndlConnectorId: connector.id,
-    url,
-  }));
-  await db.insert(filesTable).values(filesToInsert);
+  // const pagesToInsert = request.notionPages.map((url) => ({
+  //   ndlConnectorId: connector.id,
+  //   url,
+  // }));
+  // await db.insert(notionPagesTable).values(filesToInsert);
 
-  await runWebConnector({ connectorId: connector.id });
+  await runNotionConnector({ connectorId: connector.id });
 
   return connector;
 }
 
-export async function listWebConnectors(session: Session) {
+export async function listNotionConnectors(session: Session) {
   return await listConnectors(session.id);
 }
 
-export async function getWebConnector(
+export async function getNotionConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
@@ -55,22 +55,24 @@ export async function getWebConnector(
 
   const files = await db
     .select()
-    .from(filesTable)
-    .where(eq(filesTable.ndlConnectorId, connectorId));
+    .from(notionPagesTable)
+    .where(eq(notionPagesTable.ndlConnectorId, connectorId));
 
   return { ...connector, files };
 }
 
-export async function deleteWebConnector(
+export async function deleteNotionConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
   const connector = await deleteConnector(connectorId, session.id);
-  await db.delete(filesTable).where(eq(filesTable.ndlConnectorId, connectorId));
+  await db
+    .delete(notionPagesTable)
+    .where(eq(notionPagesTable.ndlConnectorId, connectorId));
   return connector;
 }
 
-export async function runWebConnector(
+export async function runNotionConnector(
   { connectorId }: ConnectorRequest,
   session?: Session,
 ) {
@@ -81,8 +83,8 @@ export async function runWebConnector(
 
   const files = await db
     .select()
-    .from(filesTable)
-    .where(eq(filesTable.ndlConnectorId, connectorId));
+    .from(notionPagesTable)
+    .where(eq(notionPagesTable.ndlConnectorId, connectorId));
 
   const descriptor: ConnectorRunDescriptor = {
     create: [],

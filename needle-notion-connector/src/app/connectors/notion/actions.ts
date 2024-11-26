@@ -1,39 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { env } from "~/env";
+import type { NotionError, NotionToken } from "~/models/notion-models";
 
-type TokenResponse = {
-  access_token: string;
-  token_type: string;
-  bot_id: string;
-  workspace_name: string;
-  workspace_icon: string;
-  workspace_id: string;
-  owner: {
-    type: string;
-    user: {
-      object: string;
-      id: string;
-      name: string;
-      avatar_url: string;
-      type: string;
-      person: unknown[];
-    };
-  };
-  duplicated_template_id: string | null;
-  request_id: string;
-};
-
-type ErrorResponse = {
-  error: string;
-  error_description: string;
-  request_id: string;
-};
-
-//  const NOTION_ACCESS_TOKEN = "notion_access_token";
-
-export async function fetchAccessToken(code: string): Promise<string> {
+export async function fetchAccessToken(code: string): Promise<NotionToken> {
   const clientId = env.NOTION_OAUTH_CLIENT_ID;
   const clientSecret = env.NOTION_OAUTH_CLIENT_SECRET;
   const oauthUrl = env.NOTION_OAUTH_URL;
@@ -55,10 +25,8 @@ export async function fetchAccessToken(code: string): Promise<string> {
   const json = (await response.json()) as unknown;
 
   if (response.status !== 200) {
-    throw new Error((json as ErrorResponse).error_description);
+    throw new Error((json as NotionError).error_description);
   }
 
-  const accessToken = (json as TokenResponse).access_token;
-  // cookies().set(NOTION_ACCESS_TOKEN, accessToken);
-  return accessToken;
+  return json as NotionToken;
 }
