@@ -7,6 +7,10 @@ import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { redirect } from "next/navigation";
 import { env } from "~/env";
+import { type NotionToken } from "~/models/notion-models";
+import { Client as NotionClient } from "@notionhq/client";
+import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
+import { type PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 type NotionPageProps = { searchParams: { token?: string } };
 
@@ -18,6 +22,13 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
   if (!searchParams.token) {
     redirect(env.NOTION_OAUTH_URL);
   }
+
+  const token = JSON.parse(searchParams.token) as NotionToken;
+  const notion = new NotionClient({ auth: token.access_token });
+
+  const pages = await notion.search({
+    filter: { property: "object", value: "page" },
+  });
 
   return (
     <>
@@ -35,6 +46,10 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
             Create Connector
           </h1>
           {error && <h2>Error: {error}</h2>}
+          <CreateConnectorForm
+            collections={collections}
+            pages={pages.results as PageObjectResponse[]}
+          />
         </div>
       </main>
 
