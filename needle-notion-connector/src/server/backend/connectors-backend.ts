@@ -15,7 +15,7 @@ import {
 
 import { db } from "../db";
 import { eq } from "drizzle-orm";
-import { notionPagesTable } from "../db/schema";
+import { notionConnectorsTable, notionPagesTable } from "../db/schema";
 
 export async function createNotionConnector(
   request: CreateConnectorRequest,
@@ -34,10 +34,21 @@ export async function createNotionConnector(
 
   const pagesToInsert = request.notionPages.map((p) => ({
     ndlConnectorId: connector.id,
-    url: p.url,
+    ndlFileId: createNeedleFileId(),
+    notionUrl: p.url,
     notionPageId: p.id,
+    notionLastEditedTime: p.last_edited_time,
   }));
   await db.insert(notionPagesTable).values(pagesToInsert);
+
+  const connectorsToInsert = request.notionPages.map((p) => ({
+    ndlConnectorId: connector.id,
+    notionWorkspaceId: request.notionToken.workspace_id,
+    notionWorkspaceName: request.notionToken.workspace_name,
+    notionUserId: request.notionToken.owner.user.id,
+    notionPageId: p.id,
+  }));
+  await db.insert(notionConnectorsTable).values(connectorsToInsert);
 
   await runNotionConnector({ connectorId: connector.id });
 
@@ -70,6 +81,9 @@ export async function deleteNotionConnector(
   await db
     .delete(notionPagesTable)
     .where(eq(notionPagesTable.ndlConnectorId, connectorId));
+  await db
+    .delete(notionConnectorsTable)
+    .where(eq(notionConnectorsTable.ndlConnectorId, connectorId));
   return connector;
 }
 
@@ -82,7 +96,7 @@ export async function runNotionConnector(
     await getConnector(connectorId, session.id);
   }
 
-  const files = await db
+  const pages = await db
     .select()
     .from(notionPagesTable)
     .where(eq(notionPagesTable.ndlConnectorId, connectorId));
@@ -93,14 +107,14 @@ export async function runNotionConnector(
     delete: [],
   };
 
-  for (const file of files) {
-    if (file.ndlFileId) {
-      descriptor.update.push({ id: file.ndlFileId });
+  for (const page of pages) {
+    if (page.ndlFileId) {
+      descriptor.update.push({ id: page.ndlFileId });
     } else {
       descriptor.create.push({
         id: createNeedleFileId(),
-        url: file.url,
-        type: "text/html",
+        url: page.notionUrl,
+        type: "text/plain",
       });
     }
   }

@@ -1,11 +1,71 @@
 {
-  "id": "25e2afab-7a3a-4892-aee5-c3f75d15b725",
+  "id": "cb4b154f-a160-4d77-b634-d99947e10480",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.files": {
-      "name": "files",
+    "public.notion_connectors": {
+      "name": "notion_connectors",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ndl_connector_id": {
+          "name": "ndl_connector_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_workspace_id": {
+          "name": "notion_workspace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_workspace_name": {
+          "name": "notion_workspace_name",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_page_id": {
+          "name": "notion_page_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_user_id": {
+          "name": "notion_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.notion_pages": {
+      "name": "notion_pages",
       "schema": "",
       "columns": {
         "id": {
@@ -26,14 +86,33 @@
           "primaryKey": false,
           "notNull": false
         },
-        "url": {
-          "name": "url",
+        "notion_page_id": {
+          "name": "notion_page_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_last_edited_time": {
+          "name": "notion_last_edited_time",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_url": {
+          "name": "notion_url",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": true,
