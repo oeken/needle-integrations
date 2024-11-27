@@ -3,6 +3,9 @@ import { NotionPageSchema, NotionTokenSchema } from "./notion-models";
 
 export const CreateConnectorRequestSchema = z.object({
   collectionId: z.string(),
+  name: z.string(),
+  cronJob: z.string(),
+  cronJobTimezone: z.string(),
   notionToken: NotionTokenSchema,
   notionPages: z.array(NotionPageSchema),
 });
