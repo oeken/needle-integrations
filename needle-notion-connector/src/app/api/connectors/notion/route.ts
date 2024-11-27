@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchAccessToken } from "~/app/connectors/notion/actions";
+import { fetchAccessToken } from "~/utils/notion-utils";
 import { env } from "~/env";
 
 export async function GET(request: Request) {

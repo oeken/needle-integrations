@@ -4,17 +4,18 @@ import { useState } from "react";
 import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
-import { type PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import { SearchResponse } from "@notionhq/client/build/src/api-endpoints";
 import { NotionPageTable } from "./NotionPageTable";
-import { NotionPage, type NotionToken } from "~/models/notion-models";
+import { type NotionToken } from "~/models/notion-models";
+import { groupPagesByDatabase } from "~/utils/notion-utils";
 
 export function CreateConnectorForm({
   collections,
-  pages,
+  searchResponse,
   token,
 }: {
   collections: Collection[];
-  pages: PageObjectResponse[];
+  searchResponse: SearchResponse;
   token: NotionToken;
 }) {
   const router = useRouter();
@@ -30,7 +31,7 @@ export function CreateConnectorForm({
   return (
     <form className="flex flex-col gap-2">
       <div className="mt-2 flex flex-col">
-        <NotionPageTable pages={pages} />
+        <NotionPageTable searchResponse={searchResponse} />
       </div>
 
       <div className="mt-2 flex flex-col">
@@ -54,7 +55,7 @@ export function CreateConnectorForm({
           createNotionConnector({
             collectionId,
             notionToken: token,
-            notionPages: pages.map((p) => ({
+            notionPages: searchResponse.map((p) => ({
               id: p.id,
               last_edited_time: p.last_edited_time,
               url: p.url,

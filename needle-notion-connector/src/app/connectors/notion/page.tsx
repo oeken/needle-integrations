@@ -10,7 +10,6 @@ import { env } from "~/env";
 import { type NotionToken } from "~/models/notion-models";
 import { Client as NotionClient } from "@notionhq/client";
 import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
-import { type PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 type NotionPageProps = { searchParams: { token?: string } };
 
@@ -26,9 +25,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
   const token = JSON.parse(searchParams.token) as NotionToken;
   const notion = new NotionClient({ auth: token.access_token });
 
-  const pages = await notion.search({
-    filter: { property: "object", value: "page" },
-  });
+  const searchResponse = await notion.search({});
 
   return (
     <>
@@ -48,7 +45,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
           {error && <h2>Error: {error}</h2>}
           <CreateConnectorForm
             collections={collections}
-            pages={pages.results as PageObjectResponse[]}
+            searchResponse={searchResponse}
             token={token}
           />
         </div>

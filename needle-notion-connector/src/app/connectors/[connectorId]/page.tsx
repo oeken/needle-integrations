@@ -55,10 +55,10 @@ export default async function ConnectorPage({
               <a
                 className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
                 key={file.id}
-                href={file.url}
+                href={file.notionUrl}
                 target="_blank"
               >
-                ↗ {file.url}
+                ↗ {file.notionUrl}
               </a>
             ))}
           </div>

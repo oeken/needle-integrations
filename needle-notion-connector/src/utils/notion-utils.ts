@@ -1,5 +1,8 @@
-"use server";
-
+import {
+  DatabaseObjectResponse,
+  PageObjectResponse,
+  SearchResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { env } from "~/env";
 import type { NotionError, NotionToken } from "~/models/notion-models";
 
@@ -29,4 +32,31 @@ export async function fetchAccessToken(code: string): Promise<NotionToken> {
   }
 
   return json as NotionToken;
+}
+
+export function groupPagesByDatabase(searchResponse: SearchResponse) {
+  type DatabaseWithPages = DatabaseObjectResponse & {
+    pages: PageObjectResponse[];
+  };
+  const databasesWithPages: Record<string, DatabaseWithPages> = {};
+  const pages: PageObjectResponse[] = [];
+
+  searchResponse.results.forEach((result) => {
+    if (result.object === "database") {
+      databasesWithPages[result.id] = {
+        ...(result as DatabaseObjectResponse),
+        pages: [],
+      };
+    } else {
+      pages.push(result as PageObjectResponse);
+    }
+  });
+
+  pages.forEach((p) => {
+    if (p.parent.type === "database_id") {
+      databasesWithPages[p.parent.database_id]?.pages.push(p);
+    }
+  });
+
+  return databasesWithPages;
 }
