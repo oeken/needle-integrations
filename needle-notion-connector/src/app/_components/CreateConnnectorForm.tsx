@@ -5,9 +5,8 @@ import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
 import { SearchResponse } from "@notionhq/client/build/src/api-endpoints";
-import { NotionPageTable } from "./NotionPageTable";
+import { NotionPreview } from "./NotionPreview";
 import { type NotionToken } from "~/models/notion-models";
-import { groupPagesByDatabase } from "~/utils/notion-utils";
 
 export function CreateConnectorForm({
   collections,
@@ -30,8 +29,11 @@ export function CreateConnectorForm({
 
   return (
     <form className="flex flex-col gap-2">
-      <div className="mt-2 flex flex-col">
-        <NotionPageTable searchResponse={searchResponse} />
+      <div className="mt-2 flex flex-col gap-2">
+        <div className="text-lg font-semibold">
+          Selected {searchResponse.results.length} pages:
+        </div>
+        <NotionPreview searchResponse={searchResponse} />
       </div>
 
       <div className="mt-2 flex flex-col">
@@ -55,7 +57,7 @@ export function CreateConnectorForm({
           createNotionConnector({
             collectionId,
             notionToken: token,
-            notionPages: searchResponse.map((p) => ({
+            notionPages: searchResponse.results.map((p) => ({
               id: p.id,
               last_edited_time: p.last_edited_time,
               url: p.url,
