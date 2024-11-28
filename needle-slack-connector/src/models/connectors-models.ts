@@ -65,7 +65,7 @@ export const SlackMessageSchema = z.object({
 });
 
 export const SlackChannelSchema = z.object({
-  id: z.string().optional(),
+  id: z.string(),
   context_team_id: z.string().optional(),
   name: z.string(),
   is_channel: z.boolean(),

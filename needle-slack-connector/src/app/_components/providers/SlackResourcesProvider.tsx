@@ -16,6 +16,8 @@ type SlackResourcesContextType = {
   setSelectedWorkspaceId: (id: string | null) => void;
   selectedTeamDomain: string | null;
   setSelectedTeamDomain: (domain: string | null) => void;
+  selectedChannelIds: string[];
+  setSelectedChannelIds: (ids: string[]) => void;
   selectedTypes: SlackType[];
   setSelectedTypes: (types: SlackType[]) => void;
   channels: SlackChannel[];
@@ -46,19 +48,34 @@ export function SlackResourcesProvider({
     "message",
     "channel",
   ]);
+  const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
 
   // Replace useSlackWorkspaces with tRPC query
   const { data: workspacesData } = api.connectors.getSlackWorkspaces.useQuery({
     accessToken: credentials,
   });
 
-  // Replace useSlackData with tRPC query
-  const { data: resourcesData } = api.connectors.getSlackData.useQuery({
-    accessToken: credentials,
-    workspaceId: selectedWorkspaceId ?? undefined,
-    fetchChannels: selectedTypes.includes("channel"),
-    fetchMessages: selectedTypes.includes("message"),
-  });
+  // Get channels for the workspace
+  const { data: channelsData } = api.connectors.getSlackChannels.useQuery(
+    {
+      accessToken: credentials,
+      workspaceId: selectedWorkspaceId ?? undefined,
+    },
+    {
+      enabled: !!selectedWorkspaceId,
+    },
+  );
+
+  // Get messages only for selected channels
+  const { data: messagesData } = api.connectors.getSlackMessages.useQuery(
+    {
+      accessToken: credentials,
+      channelIds: selectedChannelIds,
+    },
+    {
+      enabled: selectedChannelIds.length > 0,
+    },
+  );
 
   // Auto-select first workspace if none selected
   useEffect(() => {
@@ -82,8 +99,10 @@ export function SlackResourcesProvider({
         setSelectedTeamDomain,
         selectedTypes,
         setSelectedTypes,
-        channels: resourcesData?.channels.items ?? [],
-        messages: resourcesData?.messages.items ?? [],
+        selectedChannelIds,
+        setSelectedChannelIds,
+        channels: channelsData?.items ?? [],
+        messages: messagesData?.items ?? [],
       }}
     >
       {children}

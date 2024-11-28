@@ -17,7 +17,20 @@ export function SlackWorkspacePreview({
   collections: Collection[];
   credentials: string;
 }) {
-  const { channels, messages, workspaces } = useSlackResources();
+  const {
+    channels,
+    messages,
+    workspaces,
+    selectedChannelIds,
+    setSelectedChannelIds,
+  } = useSlackResources();
+
+  const handleChannelToggle = (channelId: string) => {
+    const newIds = selectedChannelIds.includes(channelId)
+      ? selectedChannelIds.filter((id) => id !== channelId)
+      : [...selectedChannelIds, channelId];
+    setSelectedChannelIds(newIds);
+  };
 
   console.log({ channels, messages, workspaces });
 
@@ -55,28 +68,34 @@ export function SlackWorkspacePreview({
             </div>
 
             <div className="space-y-2">
-              {channels
-                // ?.filter((channel) => channel.context_team_id === workspace.id)
-                ?.map((channel) => (
-                  <div
-                    key={channel.id}
-                    className="rounded-md border border-zinc-200 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">#{channel.name}</p>
-                        <p className="text-sm text-zinc-500">
-                          {channel.topic?.value ??
-                            channel.purpose?.value ??
-                            "No topic set"}
-                        </p>
-                      </div>
-                      <span className="text-sm text-zinc-500">
-                        {channel.num_members} members
-                      </span>
+              {channels?.map((channel) => (
+                <div
+                  key={channel.id}
+                  onClick={() => handleChannelToggle(channel.id)}
+                  className="flex cursor-pointer items-center rounded-md border border-zinc-200 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedChannelIds.includes(channel.id)}
+                    className="mr-4 rounded border-gray-300"
+                    onClick={(e) => e.stopPropagation()} // Prevent double toggle
+                    onChange={() => handleChannelToggle(channel.id)}
+                  />
+                  <div className="flex flex-1 items-center justify-between">
+                    <div>
+                      <p className="font-medium">#{channel.name}</p>
+                      <p className="text-sm text-zinc-500">
+                        {channel.topic?.value ??
+                          channel.purpose?.value ??
+                          "No topic set"}
+                      </p>
                     </div>
+                    <span className="text-sm text-zinc-500">
+                      {channel.num_members} members
+                    </span>
                   </div>
-                ))}
+                </div>
+              ))}
             </div>
           </div>
 
