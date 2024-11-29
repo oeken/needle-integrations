@@ -1,284 +1,77 @@
 import {
   ConnectorRequestSchema,
   CreateConnectorRequestSchema,
-  type SlackChannel,
-  type SlackMessage,
-  SlackResponseSchema,
+  SlackAuthSchema,
+  SlackChannelRequestSchema,
+  type SlackChannelsResponse,
+  SlackMessagesRequestSchema,
+  type SlackMessagesResponse,
   type SlackWorkspace,
 } from "~/models/connectors-models";
 import { createTRPCRouter, procedure } from "~/server/api/trpc";
 import {
-  createZendeskConnector,
-  deleteZendeskConnector,
-  getZendeskConnector,
-  listZendeskConnectors,
+  createSlackConnector,
+  deleteSlackConnector,
+  getSlackConnector,
+  listSlackConnectors,
+  runSlackConnector,
 } from "~/server/backend/connectors-backend";
 import { createSlackService } from "~/server/slack/service";
-import { z } from "zod";
 
 export const connectorsRouter = createTRPCRouter({
   create: procedure
     .input(CreateConnectorRequestSchema)
     .mutation(async ({ ctx, input }) =>
-      createZendeskConnector(input, ctx.session),
+      createSlackConnector(
+        {
+          ...input,
+          metadata: { channelIds: input.selectedChannelIds },
+        },
+        ctx.session,
+      ),
     ),
 
-  list: procedure.query(async ({ ctx }) => listZendeskConnectors(ctx.session)),
+  list: procedure.query(async ({ ctx }) => listSlackConnectors(ctx.session)),
 
   get: procedure
     .input(ConnectorRequestSchema)
-    .query(async ({ ctx, input }) => getZendeskConnector(input, ctx.session)),
+    .query(async ({ ctx, input }) => getSlackConnector(input, ctx.session)),
 
   delete: procedure
     .input(ConnectorRequestSchema)
     .mutation(async ({ ctx, input }) =>
-      deleteZendeskConnector(input, ctx.session),
+      deleteSlackConnector(input, ctx.session),
     ),
 
-  // New Slack data routes using our defined schemas
-  getSlackWorkspaces: procedure
-    .input(SlackResponseSchema)
+  run: procedure
+    .input(ConnectorRequestSchema)
+    .mutation(async ({ ctx, input }) => runSlackConnector(input, ctx.session)),
+
+  getWorkspaces: procedure.input(SlackAuthSchema).query(async ({ input }) => {
+    const slackService = createSlackService(input.accessToken);
+    return (await slackService.getWorkspaces()) as SlackWorkspace;
+  }),
+
+  getChannels: procedure
+    .input(SlackChannelRequestSchema)
     .query(async ({ input }) => {
       const slackService = createSlackService(input.accessToken);
-      try {
-        const workspaces = await slackService.getWorkspaces();
-
-        return {
-          items: workspaces.items,
-          count: workspaces.items.length,
-        };
-      } catch (error) {
-        console.error("[getSlackWorkspaces] Error:", error);
-        throw error;
-      }
+      return (await slackService.getChannels()) as SlackChannelsResponse;
     }),
 
-  getSlackData: procedure
-    .input(SlackResponseSchema)
+  getMessages: procedure
+    .input(SlackMessagesRequestSchema)
     .query(async ({ input }) => {
       const slackService = createSlackService(input.accessToken);
-
-      if (!input.workspaceId) {
-        return {
-          messages: {
-            items: [],
-            metadata: {
-              totalCount: 0,
-              pageCount: 0,
-              hasMore: false,
-              totalPages: 0,
-            },
-          },
-          channels: {
-            items: [],
-            metadata: {
-              totalCount: 0,
-              pageCount: 0,
-              hasMore: false,
-              totalPages: 0,
-            },
-          },
-        };
-      }
-
-      const results = {
-        messages: {
-          items: [] as SlackMessage[],
-          metadata: {
-            totalCount: 0,
-            pageCount: 0,
-            hasMore: false,
-            totalPages: 0,
-          },
-        },
-        channels: {
-          items: [] as SlackChannel[],
-          metadata: {
-            totalCount: 0,
-            pageCount: 0,
-            hasMore: false,
-            totalPages: 0,
-          },
-        },
-      };
-
-      if (input.fetchChannels) {
-        results.channels = await slackService.getChannels(input.workspaceId);
-      }
-
-      if (input.fetchMessages && results.channels.items.length > 0) {
-        // Fetch messages from all channels in parallel
-        const messagePromises = results.channels.items
-          .filter((channel) => channel.id) // Filter out channels without IDs
-          .map(async (channel) => {
-            try {
-              const channelMessages = await slackService.getMessages(
-                channel.id,
-              );
-              return {
-                channelId: channel.id,
-                channelName: channel.name,
-                messages: channelMessages,
-              };
-            } catch (error) {
-              console.error(
-                `Error fetching messages for channel ${channel.id}:`,
-                error,
-              );
-              return {
-                channelId: channel.id,
-                channelName: channel.name,
-                messages: {
-                  items: [],
-                  metadata: {
-                    totalCount: 0,
-                    pageCount: 0,
-                    hasMore: false,
-                    totalPages: 0,
-                  },
-                },
-              };
-            }
-          });
-
-        const channelMessages = await Promise.all(messagePromises);
-
-        // Combine all messages and update metadata
-        const allMessages = channelMessages.flatMap((cm) =>
-          cm.messages.items.map((msg) => ({
-            ...msg,
-            channelId: cm.channelId,
-            channelName: cm.channelName,
-          })),
-        );
-
-        results.messages = {
-          items: allMessages,
-          metadata: {
-            totalCount: allMessages.length,
-            pageCount: channelMessages.reduce(
-              (acc, cm) => acc + cm.messages.metadata.pageCount,
-              0,
-            ),
-            hasMore: channelMessages.some((cm) => cm.messages.metadata.hasMore),
-            totalPages: channelMessages.reduce(
-              (acc, cm) => acc + cm.messages.metadata.totalPages,
-              0,
-            ),
-          },
-        };
-      }
-
-      return results;
+      return (await slackService.getMessages(
+        input.channelIds,
+      )) as SlackMessagesResponse[];
     }),
 
-  getSlackChannels: procedure
-    .input(
-      z.object({
-        accessToken: z.string(),
-        workspaceId: z.string().optional(),
-      }),
-    )
+  getWorkspaceTimezone: procedure
+    .input(SlackAuthSchema)
     .query(async ({ input }) => {
-      if (!input.workspaceId) {
-        return {
-          items: [],
-          metadata: {
-            totalCount: 0,
-            pageCount: 0,
-            hasMore: false,
-            totalPages: 0,
-          },
-        };
-      }
-
       const slackService = createSlackService(input.accessToken);
-      return slackService.getChannels(input.workspaceId);
-    }),
-
-  getSlackMessages: procedure
-    .input(
-      z.object({
-        accessToken: z.string(),
-        channelIds: z.array(z.string()),
-      }),
-    )
-    .query(async ({ input }) => {
-      if (input.channelIds.length === 0) {
-        return {
-          items: [],
-          metadata: {
-            totalCount: 0,
-            pageCount: 0,
-            hasMore: false,
-            totalPages: 0,
-          },
-        };
-      }
-
-      const slackService = createSlackService(input.accessToken);
-
-      // First get all channels to map names
-      const channelsData = await slackService.getChannels(input.workspaceId);
-      const channelMap = new Map(
-        channelsData.items.map((channel) => [channel.id, channel.name]),
-      );
-
-      // Fetch messages for all selected channels in parallel
-      const messagePromises = input.channelIds.map(async (channelId) => {
-        try {
-          const channelMessages = await slackService.getMessages(channelId);
-          return {
-            channelId,
-            channelName: channelMap.get(channelId) ?? "unknown-channel",
-            messages: channelMessages,
-          };
-        } catch (error) {
-          console.error(
-            `Error fetching messages for channel ${channelId}:`,
-            error,
-          );
-          return {
-            channelId,
-            channelName: channelMap.get(channelId) ?? "unknown-channel",
-            messages: {
-              items: [],
-              metadata: {
-                totalCount: 0,
-                pageCount: 0,
-                hasMore: false,
-                totalPages: 0,
-              },
-            },
-          };
-        }
-      });
-
-      const channelMessages = await Promise.all(messagePromises);
-
-      // Combine all messages and update metadata
-      const allMessages = channelMessages.flatMap((cm) =>
-        cm.messages.items.map((msg) => ({
-          ...msg,
-          channelId: cm.channelId,
-          channelName: cm.channelName,
-        })),
-      );
-
-      return {
-        items: allMessages,
-        metadata: {
-          totalCount: allMessages.length,
-          pageCount: channelMessages.reduce(
-            (acc, cm) => acc + cm.messages.metadata.pageCount,
-            0,
-          ),
-          hasMore: channelMessages.some((cm) => cm.messages.metadata.hasMore),
-          totalPages: channelMessages.reduce(
-            (acc, cm) => acc + cm.messages.metadata.totalPages,
-            0,
-          ),
-        },
-      };
+      return await slackService.getWorkspaceTimezone();
     }),
 });

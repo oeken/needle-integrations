@@ -8,21 +8,14 @@ import {
 } from "~/models/connectors-models";
 
 import { api } from "~/trpc/react";
-
-type SlackType = "message" | "channel";
+import { skipToken } from "@tanstack/react-query";
 
 type SlackResourcesContextType = {
-  selectedWorkspaceId: string | null;
-  setSelectedWorkspaceId: (id: string | null) => void;
-  selectedTeamDomain: string | null;
-  setSelectedTeamDomain: (domain: string | null) => void;
   selectedChannelIds: string[];
   setSelectedChannelIds: (ids: string[]) => void;
-  selectedTypes: SlackType[];
-  setSelectedTypes: (types: SlackType[]) => void;
-  channels: SlackChannel[];
-  messages: SlackMessage[];
-  workspaces: SlackWorkspace[];
+  channels: SlackChannel[] | undefined;
+  messages: SlackMessage[] | undefined;
+  workspace: SlackWorkspace | undefined;
 };
 
 const SlackResourcesContext = createContext<SlackResourcesContextType | null>(
@@ -38,71 +31,52 @@ export function SlackResourcesProvider({
   children,
   credentials,
 }: SlackResourcesProviderProps) {
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(
-    null,
-  );
-  const [selectedTeamDomain, setSelectedTeamDomain] = useState<string | null>(
-    null,
-  );
-  const [selectedTypes, setSelectedTypes] = useState<SlackType[]>([
-    "message",
-    "channel",
-  ]);
   const [selectedChannelIds, setSelectedChannelIds] = useState<string[]>([]);
 
-  // Replace useSlackWorkspaces with tRPC query
-  const { data: workspacesData } = api.connectors.getSlackWorkspaces.useQuery({
+  const { data: workspace } = api.connectors.getWorkspaces.useQuery({
     accessToken: credentials,
   });
 
-  // Get channels for the workspace
-  const { data: channelsData } = api.connectors.getSlackChannels.useQuery(
-    {
-      accessToken: credentials,
-      workspaceId: selectedWorkspaceId ?? undefined,
-    },
-    {
-      enabled: !!selectedWorkspaceId,
-    },
-  );
+  const { data: channels } = api.connectors.getChannels.useQuery({
+    accessToken: credentials,
+  });
 
-  // Get messages only for selected channels
-  const { data: messagesData } = api.connectors.getSlackMessages.useQuery(
-    {
-      accessToken: credentials,
-      channelIds: selectedChannelIds,
-    },
+  const { data: messages } = api.connectors.getMessages.useQuery(
+    selectedChannelIds.length > 0
+      ? {
+          accessToken: credentials,
+          channelIds: selectedChannelIds,
+        }
+      : skipToken,
     {
       enabled: selectedChannelIds.length > 0,
     },
   );
 
-  // Auto-select first workspace if none selected
-  useEffect(() => {
-    if (!selectedWorkspaceId && (workspacesData?.items?.length ?? 0) > 0) {
-      const firstWorkspace = workspacesData?.items[0];
-      console.log(
-        "[SlackResourcesProvider] Auto-selecting workspace:",
-        firstWorkspace,
-      );
-      setSelectedWorkspaceId(firstWorkspace?.id ?? null);
-    }
-  }, [workspacesData, selectedWorkspaceId]);
+  const { data: workspaceTimezone } =
+    api.connectors.getWorkspaceTimezone.useQuery({
+      accessToken: credentials,
+    });
 
+  console.log("workspaceTimezone:", { workspaceTimezone });
+
+  // Map the response to SlackMessage array
+  const mappedMessages = messages?.flatMap(
+    (channelMessages) =>
+      channelMessages.messages.map((msg) => ({
+        ...msg,
+      })) as SlackMessage[],
+  );
+
+  console.log("mappedMessages:", { mappedMessages });
   return (
     <SlackResourcesContext.Provider
       value={{
-        workspaces: workspacesData?.items ?? [],
-        selectedWorkspaceId,
-        setSelectedWorkspaceId,
-        selectedTeamDomain,
-        setSelectedTeamDomain,
-        selectedTypes,
-        setSelectedTypes,
+        workspace,
         selectedChannelIds,
         setSelectedChannelIds,
-        channels: channelsData?.items ?? [],
-        messages: messagesData?.items ?? [],
+        channels: channels?.channels,
+        messages: mappedMessages,
       }}
     >
       {children}

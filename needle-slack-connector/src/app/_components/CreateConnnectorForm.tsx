@@ -3,7 +3,7 @@
 import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
-import { useZendeskResources } from "./providers/ZendeskResourcesProvider";
+import { useSlackResources } from "./providers/SlackResourcesProvider";
 import { Button } from "./atoms/Button";
 import { Select } from "./atoms/Select";
 import { Input } from "./atoms/Input";
@@ -26,8 +26,7 @@ export function CreateConnectorForm({
   credentials: string;
 }) {
   const router = useRouter();
-  const { tickets, articles, selectedOrganizationId, selectedSubdomain } =
-    useZendeskResources();
+  const { selectedChannelIds } = useSlackResources();
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -56,10 +55,7 @@ export function CreateConnectorForm({
       cronJob,
       cronJobTimezone: data.timezone,
       credentials,
-      selectedTickets: tickets,
-      selectedArticles: articles,
-      organizationId: selectedOrganizationId!,
-      subdomain: selectedSubdomain!,
+      selectedChannelIds: selectedChannelIds,
     });
   };
   const isFormValid =

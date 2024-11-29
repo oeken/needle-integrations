@@ -6,6 +6,7 @@ import { getSession } from "~/utils/session-utils";
 import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { DeleteConnectorButton } from "~/app/_components/DeleteConnectorButton";
+import { RunConnectorButton } from "~/app/_components/RunConnectorButton";
 
 type ConnectorPageProps = { params: { connectorId: string } };
 
@@ -14,6 +15,8 @@ export default async function ConnectorPage({
 }: ConnectorPageProps) {
   const { user } = await getSession();
   const connector = await api.connectors.get({ connectorId });
+
+  console.log({ connector });
 
   return (
     <>
@@ -30,6 +33,9 @@ export default async function ConnectorPage({
             <h1 className="text-5xl font-extrabold tracking-tight">
               {connector.name}
             </h1>
+
+            <RunConnectorButton connectorId={connectorId} />
+
             {connector.error && (
               <span className="ml-auto text-3xl text-red-600">✗</span>
             )}
@@ -51,7 +57,7 @@ export default async function ConnectorPage({
                 href={file.url}
                 target="_blank"
               >
-                ↗ {file.url}
+                ↗ {file.title}
               </a>
             ))}
           </div>

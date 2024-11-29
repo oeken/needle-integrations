@@ -1,119 +1,70 @@
-import {
-  type SlackMessage,
-  type SlackChannel,
-} from "~/models/connectors-models";
-import {
-  type SlackResponse,
-  type SlackTeamResponse,
-  type SlackChannelsResponse,
-  type SlackMessagesResponse,
-  type PaginatedResponse,
-} from "./types";
+export class SlackService {
+  constructor(private readonly accessToken: string) {}
 
-export const createSlackService = (accessToken: string) => {
-  async function fetchSlackApi<T extends SlackResponse>(
-    endpoint: string,
-    params: Record<string, string> = {},
-  ): Promise<T> {
-    try {
-      console.log("[Slack Service] Calling endpoint:", endpoint);
+  async getWorkspaceTimezone() {
+    const response = await fetch("https://slack.com/api/users.profile.get", {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-      const cleanEndpoint = endpoint.replace(/^\/+/, "");
-      const url = new URL(`https://slack.com/api/${cleanEndpoint}`);
-
-      const response = await fetch(url.toString(), {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams(params).toString(),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = (await response.json()) as T;
-      console.log("[Slack Service] Response data:", data);
-
-      if (!data.ok) {
-        console.error("[Slack Service] API error:", data.error);
-        throw new Error(data.error ?? "Slack API error");
-      }
-
-      return data;
-    } catch (error) {
-      console.error("[Slack Service] Fetch error:", error);
-      throw error;
-    }
+    const data = (await response.json()) as unknown;
+    return data;
   }
 
-  const getWorkspaces = async (): Promise<
-    PaginatedResponse<SlackTeamResponse["team"]>
-  > => {
-    console.log("[Slack Service] Getting workspaces");
-    const data = await fetchSlackApi<SlackTeamResponse>("team.info");
-
-    return {
-      items: [data.team],
-      metadata: {
-        totalCount: 1,
-        pageCount: 1,
-        totalPages: 1,
-        hasMore: false,
+  async getWorkspaces() {
+    const response = await fetch("https://slack.com/api/team.info", {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+        "Content-Type": "application/json",
       },
-    };
-  };
+    });
 
-  const getChannels = async (
-    workspaceId: string,
-  ): Promise<PaginatedResponse<SlackChannel>> => {
-    console.log("[Slack Service] Getting channels for workspace:", workspaceId);
-    const data = await fetchSlackApi<SlackChannelsResponse>(
-      "conversations.list",
+    const data = (await response.json()) as unknown;
+
+    return data;
+  }
+
+  async getChannels() {
+    const params = new URLSearchParams({
+      types: ["public_channel", "private_channel"].join(","),
+    });
+
+    const response = await fetch(
+      `https://slack.com/api/conversations.list?${params}`,
       {
-        team_id: workspaceId,
-        types: "public_channel,private_channel",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+        },
       },
     );
 
-    return {
-      items: data.channels ?? [],
-      metadata: {
-        totalCount: data.channels?.length ?? 0,
-        pageCount: 1,
-        totalPages: 1,
-        hasMore: !!data.response_metadata?.next_cursor,
-      },
-    };
-  };
+    const data = (await response.json()) as unknown;
 
-  const getMessages = async (
-    channelId: string,
-  ): Promise<PaginatedResponse<SlackMessage>> => {
-    console.log("[Slack Service] Getting messages for channel:", channelId);
-    const data = await fetchSlackApi<SlackMessagesResponse>(
-      "conversations.history",
-      {
-        channel: channelId,
-      },
+    return data;
+  }
+
+  async getMessages(channelIds: string[]) {
+    const messagesPromises = channelIds.map((channelId) =>
+      fetch(
+        `https://slack.com/api/conversations.history?channel=${channelId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      ).then((response) => response.json()),
     );
 
-    return {
-      items: data.messages ?? [],
-      metadata: {
-        totalCount: data.messages?.length ?? 0,
-        pageCount: 1,
-        totalPages: 1,
-        hasMore: data.has_more ?? false,
-      },
-    };
-  };
+    const results = (await Promise.all(messagesPromises)) as unknown[];
 
-  return {
-    getChannels,
-    getMessages,
-    getWorkspaces,
-  };
-};
+    return results;
+  }
+}
+
+export function createSlackService(accessToken: string) {
+  return new SlackService(accessToken);
+}

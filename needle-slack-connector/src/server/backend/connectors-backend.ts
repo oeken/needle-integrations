@@ -12,22 +12,149 @@ import {
   type Session,
   type ConnectorRunDescriptor,
 } from "@needle-ai/needle-sdk";
-
+import { filesTable, slackConnectorsTable } from "../db/schema";
 import { db } from "../db";
-import { filesTable, zendeskConnectorsTable } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { createZendeskService } from "../zendesk/service";
 import {
   getConnectorDetails,
   getCurrentFiles,
   handleDatabaseUpdates,
-} from "./zendesk-db";
-import { computeDiff } from "./diff-utils";
+  updateLastSynced,
+} from "./slack-db";
 
-export async function createZendeskConnector(
-  params: CreateConnectorRequest,
+interface SlackConnectorRequest extends CreateConnectorRequest {
+  metadata: {
+    channelIds: string[];
+  };
+}
+
+// Add the allowed MIME types
+type AllowedMimeType =
+  | "text/plain"
+  | "application/vnd.google-apps.document"
+  | "application/vnd.google-apps.presentation"
+  | "application/vnd.google-apps.spreadsheet"
+  | "application/pdf"
+  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  | "text/calendar";
+
+// Update interfaces to match database schema
+export interface FileMetadata {
+  channelId: string;
+  weekStart: string;
+  weekEnd: string;
+  dataType: string;
+}
+
+interface DatabaseFile {
+  id: number;
+  ndlConnectorId: string;
+  ndlFileId: string | null;
+  metadata: unknown;
+  createdAt: Date | null;
+  title: string;
+  updatedAt: Date | null;
+}
+
+interface FileDescriptor {
+  id: string;
+  url: string;
+  type: AllowedMimeType;
+  title: string; // Add this field
+  metadata: {
+    channelId: string;
+    weekStart: string;
+    weekEnd: string;
+    dataType: string;
+    connectorId: string;
+  };
+}
+
+const CHUNK_SIZE = 50;
+const MAX_RETRIES = 3;
+
+function generateWeekRanges(
+  months = 6,
+  timezone = "UTC",
+  referenceDate?: Date,
+): { start: Date; end: Date }[] {
+  const weeks = [];
+  const now = referenceDate ?? new Date();
+
+  // Calculate start date (6 months ago)
+  const startDate = new Date(now);
+  startDate.setMonth(now.getMonth() - months);
+
+  // Convert dates to specified timezone
+  const currentDate = new Date(
+    startDate.toLocaleString("en-US", { timeZone: timezone }),
+  );
+  const endDate = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
+
+  // Rest of the function remains the same
+  currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+  currentDate.setHours(0, 0, 0, 0);
+
+  while (currentDate <= endDate) {
+    const weekStart = new Date(currentDate);
+    const weekEnd = new Date(currentDate);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    weeks.push({
+      start: weekStart,
+      end: weekEnd,
+    });
+
+    currentDate.setDate(currentDate.getDate() + 7);
+  }
+
+  return weeks;
+}
+// Add this new function near the other date formatting functions
+function formatDate(date: Date): string {
+  return date
+    .toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    })
+    .replace(/,/g, "");
+}
+
+function formatDateRange(start: Date, end: Date): string {
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+  return `${formatDate(start)}_${formatDate(end)}`;
+}
+
+function formatDateForError(date: Date): string {
+  return date.toISOString();
+}
+
+function isValidDateRange(start: Date, end: Date): boolean {
+  return (
+    start < end && end.getTime() - start.getTime() <= 7 * 24 * 60 * 60 * 1000 // Max 7 days
+  );
+}
+
+function calculateAgeInMonths(date: Date): number {
+  return (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 30);
+}
+
+export async function createSlackConnector(
+  params: SlackConnectorRequest,
   session: Session,
 ) {
+  if (!params.metadata.channelIds.length) {
+    throw new Error("At least one channel ID must be provided");
+  }
+
   const connector = await createConnector(
     {
       name: params.name,
@@ -39,154 +166,180 @@ export async function createZendeskConnector(
     session.id,
   );
 
-  await db.insert(zendeskConnectorsTable).values({
-    connectorId: connector.id,
-    subdomain: params.subdomain,
-    orgId: params.organizationId,
-    includeTickets: params.selectedTickets.length > 0,
-    includeArticles: params.selectedArticles.length > 0,
-  });
+  try {
+    await db.insert(slackConnectorsTable).values({
+      connectorId: connector.id,
+      channelIds: params.metadata.channelIds,
+      lastSyncedAt: new Date(),
+    });
 
-  await runZendeskConnector({ connectorId: connector.id }, session);
-
-  return connector;
+    await runSlackConnector({ connectorId: connector.id }, session);
+    return connector;
+  } catch (error) {
+    // Cleanup if database insert fails
+    await deleteConnector(connector.id, session.id);
+    throw error;
+  }
 }
 
-export async function runZendeskConnector(
-  { connectorId }: { connectorId: string },
+export async function runSlackConnector(
+  { connectorId, simulateDate }: { connectorId: string; simulateDate?: Date },
   session?: Session,
 ) {
-  let accessToken = "";
-  if (session) {
-    const { credentials } = await getConnector(connectorId, session.id);
-    accessToken = credentials ?? "";
+  const TIMEZONE = "UTC";
+  const effectiveDate = simulateDate ?? new Date(); // Use simulated date if provided
+
+  if (!session) {
+    throw new Error("Session required for connector run");
+  }
+
+  const connector = await getConnector(connectorId, session.id);
+  if (!connector) {
+    throw new Error(`No connector found for ID: ${connectorId}`);
   }
 
   const connectorDetails = await getConnectorDetails(connectorId);
   if (!connectorDetails) {
-    throw new Error(`No Zendesk connector found for ID: ${connectorId}`);
+    throw new Error(`No Slack connector found for ID: ${connectorId}`);
   }
 
   const currentFiles = await getCurrentFiles(connectorId);
-  const currentTickets = currentFiles.filter(
-    (f) => f.type === "ticket" || f.type === "comments",
-  );
-  const currentArticles = currentFiles.filter((f) => f.type === "article");
+  const channelIds = connectorDetails.channelIds;
+  if (!channelIds?.length) {
+    throw new Error(`No channels found for connector ID: ${connectorId}`);
+  }
 
-  const zendeskService = createZendeskService(
-    accessToken,
-    connectorDetails.subdomain,
-  );
-  const { tickets: liveTickets, articles: liveArticles } =
-    await zendeskService.searchByOrganization(
-      connectorDetails.orgId.toString(),
-      {
-        fetchTickets: connectorDetails.includeTickets,
-        fetchArticles: connectorDetails.includeArticles,
-      },
-    );
-
-  const ticketsDiff = liveTickets
-    ? computeDiff(currentTickets, liveTickets.items)
-    : { create: [], update: [], delete: currentTickets };
-  const articlesDiff = liveArticles
-    ? computeDiff(currentArticles, liveArticles.items)
-    : { create: [], update: [], delete: currentArticles };
+  const weekRanges = generateWeekRanges(6, TIMEZONE, effectiveDate);
 
   const descriptor: ConnectorRunDescriptor = {
     create: [],
     update: [],
     delete: [],
   };
-  const fileIdMap = new Map<string, string>();
 
-  const createItems = [
-    ...ticketsDiff.create.map((item) => ({ type: "ticket", data: item })),
-    ...articlesDiff.create.map((item) => ({ type: "article", data: item })),
-  ];
+  const filesToCreate: { id: string; metadata: FileMetadata; title: string }[] =
+    [];
+  const filesToUpdate: { id: string; metadata: FileMetadata }[] = [];
+  const filesToDelete: { id: string }[] = [];
 
-  for (const { type, data } of createItems) {
-    if (type === "ticket" && "subject" in data) {
-      const ticketFileId = createNeedleFileId();
-      const commentsFileId = createNeedleFileId();
-      fileIdMap.set(`ticket-${data.id}`, ticketFileId);
-      fileIdMap.set(`comments-${data.id}`, commentsFileId);
+  const now = new Date();
 
-      descriptor.create.push(
-        {
-          id: ticketFileId,
-          url: data.url,
-          type: "text/plain",
-        },
-        {
-          id: commentsFileId,
-          url: data.url.replace(".json", "/comments.json"),
-          type: "text/plain",
-        },
-      );
-    } else if (type === "article" && "title" in data) {
-      const articleFileId = createNeedleFileId();
-      fileIdMap.set(`article-${data.id}`, articleFileId);
+  for (const channelId of channelIds) {
+    for (const { start, end } of weekRanges) {
+      // Generate fileId only if we don't have an existing file
+      const fileId = createNeedleFileId();
+      const dateKey = formatDateRange(start, end);
+      const ageInMonths =
+        (effectiveDate.getTime() - start.getTime()) /
+        (1000 * 60 * 60 * 24 * 30);
 
-      descriptor.create.push({
-        id: articleFileId,
-        url: data.html_url,
-        type: "text/html",
+      const existingFile = currentFiles.find((f) => {
+        if (!f.title) {
+          throw new Error(
+            `File ${f.id} has no title - this should never happen`,
+          );
+        }
+        const metadata = f.metadata as FileMetadata | null;
+        return (
+          metadata?.channelId === channelId &&
+          metadata?.weekStart === start.toISOString()
+        );
       });
-    }
-  }
 
-  for (const item of [...ticketsDiff.update, ...articlesDiff.update]) {
-    const dbFiles = currentFiles.filter((f) => f.originId === item.id);
-    for (const dbFile of dbFiles) {
-      if (dbFile.ndlFileId) {
-        descriptor.update.push({ id: dbFile.ndlFileId });
-        // Maintain fileIdMap for updates
-        fileIdMap.set(`${dbFile.type}-${item.id}`, dbFile.ndlFileId);
+      // Use the existing file ID if available, otherwise use the new fileId
+      const currentFileId = existingFile?.ndlFileId ?? fileId;
+
+      // Format the title as requested
+      const title =
+        `#${channelId}_week-of_${formatDate(start)}-${formatDate(end)}`.replace(
+          /\s+/g,
+          "_",
+        );
+
+      const fileMetadata: FileMetadata = {
+        channelId,
+        weekStart: start.toISOString(),
+        weekEnd: end.toISOString(),
+        dataType: "slack_messages",
+      };
+
+      const fileDescriptor: FileDescriptor = {
+        id: currentFileId, // Use consistent ID
+        url: `slack://messages/${channelId}/${dateKey}`,
+        type: "text/plain",
+        title, // Add the title here
+        metadata: {
+          ...fileMetadata,
+          connectorId,
+        },
+      };
+
+      if (ageInMonths > 6 && existingFile) {
+        descriptor.delete.push({ id: currentFileId });
+        filesToDelete.push({ id: currentFileId });
+      } else if (ageInMonths <= 1) {
+        if (existingFile) {
+          descriptor.update.push(fileDescriptor);
+          filesToUpdate.push({
+            id: currentFileId,
+            metadata: fileMetadata,
+          });
+        } else {
+          descriptor.create.push(fileDescriptor);
+          filesToCreate.push({
+            id: currentFileId,
+            metadata: fileMetadata,
+            title: title, // Add this line
+          });
+        }
+      } else if (!existingFile && ageInMonths <= 6) {
+        descriptor.create.push(fileDescriptor);
+        filesToCreate.push({
+          id: currentFileId,
+          metadata: fileMetadata,
+          title: title, // Add this line
+        });
       }
     }
   }
 
-  const filesToDelete = currentFiles.filter((file) =>
-    file.type === "ticket" || file.type === "comments"
-      ? ticketsDiff.delete.some((t) => t.originId === file.originId)
-      : articlesDiff.delete.some((a) => a.originId === file.originId),
-  );
+  // Add some debugging logs
+  console.log("Files to create:", filesToCreate.length);
+  console.log("Files to update:", filesToUpdate.length);
+  console.log("Files to delete:", filesToDelete.length);
 
-  filesToDelete
-    .filter(
-      (file): file is typeof file & { ndlFileId: string } =>
-        file.ndlFileId !== null,
-    )
-    .forEach((file) => descriptor.delete.push({ id: file.ndlFileId }));
+  console.log("descriptor", descriptor);
 
+  // Publish all descriptors at once
   await publishConnectorRun(connectorId, descriptor);
 
-  await db.transaction(async (tx) => {
-    await handleDatabaseUpdates(
-      tx,
-      connectorId,
-      ticketsDiff,
-      articlesDiff,
-      fileIdMap,
-    );
-  });
+  await handleDatabaseUpdates(
+    connectorId,
+    filesToCreate,
+    filesToUpdate,
+    filesToDelete,
+  );
+
+  await updateLastSynced(connectorId);
 }
 
-export async function listZendeskConnectors(session: Session) {
+export async function listSlackConnectors(session: Session) {
   return await listConnectors(session.id);
 }
 
-export async function getZendeskConnector(
+export async function getSlackConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
   const connector = await getConnector(connectorId, session.id);
+  if (!connector) {
+    throw new Error(`No connector found for ID: ${connectorId}`);
+  }
 
-  const [zendeskMetadata] = await db
+  const [slackMetadata] = await db
     .select()
-    .from(zendeskConnectorsTable)
-    .where(eq(zendeskConnectorsTable.connectorId, connectorId));
+    .from(slackConnectorsTable)
+    .where(eq(slackConnectorsTable.connectorId, connectorId));
 
   const files = await db
     .select()
@@ -196,27 +349,21 @@ export async function getZendeskConnector(
   return {
     ...connector,
     files,
-    subdomain: zendeskMetadata?.subdomain,
-    organizationId: zendeskMetadata?.orgId,
-    includeTickets: zendeskMetadata?.includeTickets,
-    includeArticles: zendeskMetadata?.includeArticles,
+    channelIds: slackMetadata?.channelIds,
+    lastSyncedAt: slackMetadata?.lastSyncedAt,
   };
 }
 
-export async function deleteZendeskConnector(
+export async function deleteSlackConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
   const connector = await deleteConnector(connectorId, session.id);
 
-  await db.transaction(async (tx) => {
-    await tx
-      .delete(filesTable)
-      .where(eq(filesTable.ndlConnectorId, connectorId));
-    await tx
-      .delete(zendeskConnectorsTable)
-      .where(eq(zendeskConnectorsTable.connectorId, connectorId));
-  });
+  // Clean up our database records
+  await db
+    .delete(slackConnectorsTable)
+    .where(eq(slackConnectorsTable.connectorId, connectorId));
 
   return connector;
 }

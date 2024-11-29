@@ -20,7 +20,7 @@ export function SlackWorkspacePreview({
   const {
     channels,
     messages,
-    workspaces,
+    workspace,
     selectedChannelIds,
     setSelectedChannelIds,
   } = useSlackResources();
@@ -32,38 +32,35 @@ export function SlackWorkspacePreview({
     setSelectedChannelIds(newIds);
   };
 
-  console.log({ channels, messages, workspaces });
+  console.log({ channels, messages, workspace });
 
   return (
     <div className="my-8 space-y-6">
-      {/* Workspaces List */}
-      {workspaces?.map((workspace) => (
+      {/* Single Workspace View */}
+      {workspace && (
         <div
-          key={workspace.id}
+          key={workspace.team.id}
           className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
         >
           <div className="flex items-center gap-4">
             <img
-              src={workspace.icon?.image_68 ?? "/icons/slack.svg"}
-              alt={workspace.name}
+              src={workspace.team.icon?.image_68 ?? "/icons/slack.svg"}
+              alt={workspace.team.name}
               className="h-12 w-12 rounded-lg"
             />
             <div>
-              <h2 className="text-xl font-semibold">{workspace.name}</h2>
+              <h2 className="text-xl font-semibold">{workspace.team.name}</h2>
               <p className="text-sm text-zinc-500">
-                {workspace.domain}.slack.com
+                {workspace.team.domain}.slack.com
               </p>
             </div>
           </div>
 
-          {/* Channels List for this workspace */}
+          {/* Channels List */}
           <div className="mt-6 space-y-2">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-medium">
-                Channels (
-                {channels?.filter((c) => c.context_team_id === workspace.id)
-                  ?.length || 0}
-                )
+                Channels ({channels?.length ?? 0})
               </h3>
             </div>
 
@@ -137,13 +134,13 @@ export function SlackWorkspacePreview({
             </div>
           </div>
         </div>
-      ))}
+      )}
 
       <SlackResourceInfo />
-      {/* <CreateConnectorForm
+      <CreateConnectorForm
         collections={collections}
         credentials={credentials}
-      /> */}
+      />
     </div>
   );
 }

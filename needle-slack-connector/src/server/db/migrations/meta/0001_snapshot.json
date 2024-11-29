@@ -1,6 +1,6 @@
 {
-  "id": "a7203b6f-e66a-4115-a120-1d71ed414794",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "9026a3a7-cdbe-4f76-bce1-a468888d810c",
+  "prevId": "a7203b6f-e66a-4115-a120-1d71ed414794",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -23,6 +23,12 @@
         "ndl_file_id": {
           "name": "ndl_file_id",
           "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
           "primaryKey": false,
           "notNull": false
         },

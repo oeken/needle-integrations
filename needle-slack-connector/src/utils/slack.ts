@@ -18,6 +18,7 @@ const SLACK_USER_SCOPES = [
   "team:read", // Add this for workspace/team info
   "users:read", // Add this for user info
   "users:read.email", // Add this for user email
+  "users.profile:read", // Add this for user profile
   "im:history", // Add this for direct messages
   "im:read", // Add this for direct message channels
   "mpim:history", // Add this for multi-person instant messages

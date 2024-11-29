@@ -7,6 +7,7 @@ import {
   varchar,
   bigint,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const createTable = pgTableCreator((name) => name);
@@ -15,33 +16,23 @@ export const filesTable = createTable("files", {
   id: serial("id").primaryKey(),
   ndlConnectorId: varchar("ndl_connector_id", { length: 256 }).notNull(),
   ndlFileId: varchar("ndl_file_id", { length: 256 }),
-  originId: bigint("origin_id", { mode: "number" }).notNull(), // Changed from integer to bigint
-  url: text("url").notNull(),
-  title: text("title").notNull(),
-  type: varchar("type", { length: 50 })
-    .$type<"ticket" | "article" | "comments">()
-    .notNull(),
-  createdAt: timestamp("created_at")
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: timestamp("updated_at")
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
+  title: varchar("title", { length: 512 }), // Add this line
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const zendeskConnectorsTable = createTable("zendesk_connectors", {
+export const slackConnectorsTable = createTable("slack_connectors", {
   connectorId: varchar("connector_id", { length: 256 }).primaryKey(),
-  subdomain: varchar("subdomain", { length: 256 }).notNull(),
-  orgId: bigint("org_id", { mode: "number" }).notNull(),
-  includeTickets: boolean("include_tickets").notNull().default(false),
-  includeArticles: boolean("include_articles").notNull().default(false),
+  channelIds: text("channel_ids").array(),
+  lastSyncedAt: timestamp("last_synced_at").defaultNow(),
 });
 
 // Add type definitions for better type safety
 export type FileInsert = typeof filesTable.$inferInsert;
 export type FileSelect = typeof filesTable.$inferSelect;
-export type ZendeskConnectorInsert = typeof zendeskConnectorsTable.$inferInsert;
-export type ZendeskConnectorSelect = typeof zendeskConnectorsTable.$inferSelect;
+export type SlackConnectorInsert = typeof slackConnectorsTable.$inferInsert;
+export type SlackConnectorSelect = typeof slackConnectorsTable.$inferSelect;
 
 // Define the valid file types
 export const FileTypes = {
