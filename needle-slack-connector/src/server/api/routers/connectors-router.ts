@@ -7,6 +7,7 @@ import {
   SlackMessagesRequestSchema,
   type SlackMessagesResponse,
   type SlackWorkspace,
+  SlackUserTimezoneSchema,
 } from "~/models/connectors-models";
 import { createTRPCRouter, procedure } from "~/server/api/trpc";
 import {
@@ -22,13 +23,7 @@ export const connectorsRouter = createTRPCRouter({
   create: procedure
     .input(CreateConnectorRequestSchema)
     .mutation(async ({ ctx, input }) =>
-      createSlackConnector(
-        {
-          ...input,
-          metadata: { channelIds: input.selectedChannelIds },
-        },
-        ctx.session,
-      ),
+      createSlackConnector(input, ctx.session),
     ),
 
   list: procedure.query(async ({ ctx }) => listSlackConnectors(ctx.session)),
@@ -68,10 +63,10 @@ export const connectorsRouter = createTRPCRouter({
       )) as SlackMessagesResponse[];
     }),
 
-  getWorkspaceTimezone: procedure
-    .input(SlackAuthSchema)
+  getUserTimezone: procedure
+    .input(SlackUserTimezoneSchema)
     .query(async ({ input }) => {
       const slackService = createSlackService(input.accessToken);
-      return await slackService.getWorkspaceTimezone();
+      return await slackService.getUserTimezone(input.userId);
     }),
 });

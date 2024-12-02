@@ -1,17 +1,20 @@
+export interface TimezoneInfo {
+  timezone: string;
+  timezoneLabel: string;
+  timezoneOffset: number;
+}
+
+interface SlackUserResponse {
+  ok: boolean;
+  user?: {
+    tz: string;
+    tz_label: string;
+    tz_offset: number;
+  };
+}
+
 export class SlackService {
   constructor(private readonly accessToken: string) {}
-
-  async getWorkspaceTimezone() {
-    const response = await fetch("https://slack.com/api/users.profile.get", {
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = (await response.json()) as unknown;
-    return data;
-  }
 
   async getWorkspaces() {
     const response = await fetch("https://slack.com/api/team.info", {
@@ -62,6 +65,32 @@ export class SlackService {
     const results = (await Promise.all(messagesPromises)) as unknown[];
 
     return results;
+  }
+
+  async getUserTimezone(userId: string): Promise<TimezoneInfo> {
+    const response = await fetch(
+      `https://slack.com/api/users.info?user=${userId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const data = (await response.json()) as SlackUserResponse;
+
+    console.log({ data });
+
+    if (!data.ok || !data.user) {
+      throw new Error("Failed to fetch user timezone");
+    }
+
+    return {
+      timezone: data.user.tz,
+      timezoneLabel: data.user.tz_label,
+      timezoneOffset: data.user.tz_offset,
+    };
   }
 }
 

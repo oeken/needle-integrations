@@ -16,7 +16,7 @@ export const filesTable = createTable("files", {
   id: serial("id").primaryKey(),
   ndlConnectorId: varchar("ndl_connector_id", { length: 256 }).notNull(),
   ndlFileId: varchar("ndl_file_id", { length: 256 }),
-  title: varchar("title", { length: 512 }), // Add this line
+  title: varchar("title", { length: 512 }),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -24,11 +24,12 @@ export const filesTable = createTable("files", {
 
 export const slackConnectorsTable = createTable("slack_connectors", {
   connectorId: varchar("connector_id", { length: 256 }).primaryKey(),
-  channelIds: text("channel_ids").array(),
+  channelInfo: jsonb("channel_info").$type<SlackChannel[]>(), // Add type information
+  timezone: text("timezone"),
   lastSyncedAt: timestamp("last_synced_at").defaultNow(),
 });
 
-// Add type definitions for better type safety
+// Type definitions for better type safety
 export type FileInsert = typeof filesTable.$inferInsert;
 export type FileSelect = typeof filesTable.$inferSelect;
 export type SlackConnectorInsert = typeof slackConnectorsTable.$inferInsert;
@@ -42,3 +43,9 @@ export const FileTypes = {
 } as const;
 
 export type FileType = (typeof FileTypes)[keyof typeof FileTypes];
+
+// Slack channel types
+export type SlackChannel = {
+  id: string;
+  name: string;
+};

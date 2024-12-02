@@ -14,6 +14,7 @@ interface PageProps {
   searchParams: {
     state?: string;
     workspace?: string;
+    slackUserId?: string;
   };
 }
 
@@ -30,7 +31,7 @@ const handleSlackOAuth = (workspace: string, type: "bot" | "user") => {
 
 export default async function SlackPage({ searchParams }: PageProps) {
   const { user, session } = await getSession();
-  const { state: accessToken, workspace } = searchParams;
+  const { state: accessToken, workspace, slackUserId } = searchParams;
 
   if (!accessToken && !workspace) {
     return <SlackWorkspaceForm user={user} />;
@@ -40,8 +41,8 @@ export default async function SlackPage({ searchParams }: PageProps) {
     return handleSlackOAuth(workspace, "user");
   }
 
-  if (!accessToken) {
-    return redirect("/error?message=missing-authorization-code");
+  if (!accessToken || !slackUserId) {
+    return redirect("/error?message=missing-authorization-code-or-user-id");
   }
 
   const collections = await listCollections(session.id);
@@ -50,10 +51,9 @@ export default async function SlackPage({ searchParams }: PageProps) {
     <>
       <Header user={user} />
       <SlackConnectorHeader />
-      <SlackResourcesProvider credentials={accessToken}>
+      <SlackResourcesProvider credentials={accessToken} userId={slackUserId}>
         <main className="mx-auto flex w-full flex-col px-4 xl:max-w-[50%]">
           <div className="my-8 flex flex-col">
-            {/* We'll implement this component next */}
             <SlackWorkspacePreview
               collections={collections}
               credentials={accessToken}

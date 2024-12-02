@@ -1,5 +1,5 @@
 {
-  "id": "a7203b6f-e66a-4115-a120-1d71ed414794",
+  "id": "4ba35ff7-043b-4048-b67a-b078b8223954",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -23,6 +23,12 @@
         "ndl_file_id": {
           "name": "ndl_file_id",
           "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
           "primaryKey": false,
           "notNull": false
         },
@@ -62,9 +68,15 @@
           "primaryKey": true,
           "notNull": true
         },
-        "channel_ids": {
-          "name": "channel_ids",
-          "type": "text[]",
+        "channel_info": {
+          "name": "channel_info",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },

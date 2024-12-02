@@ -6,8 +6,8 @@ export const CreateConnectorRequestSchema = z.object({
   credentials: z.string(),
   cronJob: z.string(),
   cronJobTimezone: z.string(),
-  selectedChannelIds: z.array(z.string()),
-  metadata: z.record(z.any()).optional(), // Add this line
+  channels: z.array(z.object({ id: z.string(), name: z.string() })), // Ensure this matches the expected structure
+  timezone: z.string(),
 });
 
 export const SlackMessageSchema = z.object({
@@ -103,6 +103,10 @@ export const ConnectorRequestSchema = z.object({
 
 export const SlackAuthSchema = z.object({
   accessToken: z.string(),
+});
+
+export const SlackUserTimezoneSchema = SlackAuthSchema.extend({
+  userId: z.string(),
 });
 
 export const SlackWorkspaceRequestSchema = SlackAuthSchema.extend({

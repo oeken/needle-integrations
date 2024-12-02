@@ -23,9 +23,8 @@ import {
 } from "./slack-db";
 
 interface SlackConnectorRequest extends CreateConnectorRequest {
-  metadata: {
-    channelIds: string[];
-  };
+  channels: { id: string; name: string }[]; // Changed from channelIds
+  timezone: string;
 }
 
 // Add the allowed MIME types
@@ -41,19 +40,9 @@ type AllowedMimeType =
 // Update interfaces to match database schema
 export interface FileMetadata {
   channelId: string;
-  weekStart: string;
-  weekEnd: string;
+  monthStart: string; // changed from weekStart
+  monthEnd: string; // changed from weekEnd
   dataType: string;
-}
-
-interface DatabaseFile {
-  id: number;
-  ndlConnectorId: string;
-  ndlFileId: string | null;
-  metadata: unknown;
-  createdAt: Date | null;
-  title: string;
-  updatedAt: Date | null;
 }
 
 interface FileDescriptor {
@@ -63,25 +52,37 @@ interface FileDescriptor {
   title: string; // Add this field
   metadata: {
     channelId: string;
-    weekStart: string;
-    weekEnd: string;
+    monthStart: string; // changed from weekStart
+    monthEnd: string; // changed from weekEnd
     dataType: string;
     connectorId: string;
   };
 }
 
-const CHUNK_SIZE = 50;
-const MAX_RETRIES = 3;
+// Time-related business constants
+const TIME_CONSTANTS = {
+  // DEFAULT_TIMEZONE: "UTC",
+  HISTORY_MONTHS: 2, // How many months of history to maintain
+  SYNC_THRESHOLDS: {
+    DELETE_AFTER_MONTHS: 2, // Delete files older than n months
+    UPDATE_WITHIN_MONTHS: 1, // Update files less than n month old
+    CREATE_WITHIN_MONTHS: 2, // Create files up to n months old
+  },
+  MONTH: {
+    MAX_DURATION_MS: 31 * 24 * 60 * 60 * 1000, // ~31 days in milliseconds
+  },
+  MS_PER_MONTH: 1000 * 60 * 60 * 24 * 30, // Approximate milliseconds per month
+} as const;
 
-function generateWeekRanges(
-  months = 6,
-  timezone = "UTC",
+function generateMonthRanges(
+  months = TIME_CONSTANTS.HISTORY_MONTHS,
+  timezone: string,
   referenceDate?: Date,
 ): { start: Date; end: Date }[] {
-  const weeks = [];
+  const monthRanges = [];
   const now = referenceDate ?? new Date();
 
-  // Calculate start date (6 months ago)
+  // Calculate start date
   const startDate = new Date(now);
   startDate.setMonth(now.getMonth() - months);
 
@@ -91,68 +92,49 @@ function generateWeekRanges(
   );
   const endDate = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
 
-  // Rest of the function remains the same
-  currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+  // Set to start of month
+  currentDate.setDate(1);
   currentDate.setHours(0, 0, 0, 0);
 
   while (currentDate <= endDate) {
-    const weekStart = new Date(currentDate);
-    const weekEnd = new Date(currentDate);
-    weekEnd.setDate(weekStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
+    const monthStart = new Date(currentDate);
+    const monthEnd = new Date(currentDate);
+    // Set to last day of current month
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    monthEnd.setDate(0);
+    monthEnd.setHours(23, 59, 59, 999);
 
-    weeks.push({
-      start: weekStart,
-      end: weekEnd,
+    monthRanges.push({
+      start: monthStart,
+      end: monthEnd,
     });
 
-    currentDate.setDate(currentDate.getDate() + 7);
+    // Move to first day of next month
+    currentDate.setMonth(currentDate.getMonth() + 1);
   }
 
-  return weeks;
+  return monthRanges;
 }
 // Add this new function near the other date formatting functions
 function formatDate(date: Date): string {
   return date
     .toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
+      month: "long",
       year: "numeric",
     })
-    .replace(/,/g, "");
-}
-
-function formatDateRange(start: Date, end: Date): string {
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
-  return `${formatDate(start)}_${formatDate(end)}`;
-}
-
-function formatDateForError(date: Date): string {
-  return date.toISOString();
-}
-
-function isValidDateRange(start: Date, end: Date): boolean {
-  return (
-    start < end && end.getTime() - start.getTime() <= 7 * 24 * 60 * 60 * 1000 // Max 7 days
-  );
+    .replace(/\s+/g, "_");
 }
 
 function calculateAgeInMonths(date: Date): number {
-  return (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24 * 30);
+  return (Date.now() - date.getTime()) / TIME_CONSTANTS.MS_PER_MONTH;
 }
 
 export async function createSlackConnector(
   params: SlackConnectorRequest,
   session: Session,
 ) {
-  if (!params.metadata.channelIds.length) {
-    throw new Error("At least one channel ID must be provided");
+  if (!params.channels.length) {
+    throw new Error("At least one channel must be provided");
   }
 
   const connector = await createConnector(
@@ -169,14 +151,14 @@ export async function createSlackConnector(
   try {
     await db.insert(slackConnectorsTable).values({
       connectorId: connector.id,
-      channelIds: params.metadata.channelIds,
+      channelInfo: params.channels, // Store the full channel info
+      timezone: params.timezone ?? "UTC",
       lastSyncedAt: new Date(),
     });
 
     await runSlackConnector({ connectorId: connector.id }, session);
     return connector;
   } catch (error) {
-    // Cleanup if database insert fails
     await deleteConnector(connector.id, session.id);
     throw error;
   }
@@ -186,8 +168,7 @@ export async function runSlackConnector(
   { connectorId, simulateDate }: { connectorId: string; simulateDate?: Date },
   session?: Session,
 ) {
-  const TIMEZONE = "UTC";
-  const effectiveDate = simulateDate ?? new Date(); // Use simulated date if provided
+  const effectiveDate = simulateDate ?? new Date();
 
   if (!session) {
     throw new Error("Session required for connector run");
@@ -204,12 +185,16 @@ export async function runSlackConnector(
   }
 
   const currentFiles = await getCurrentFiles(connectorId);
-  const channelIds = connectorDetails.channelIds;
-  if (!channelIds?.length) {
+  const channelInfo = connectorDetails.channelInfo;
+  if (!channelInfo?.length) {
     throw new Error(`No channels found for connector ID: ${connectorId}`);
   }
 
-  const weekRanges = generateWeekRanges(6, TIMEZONE, effectiveDate);
+  const monthRanges = generateMonthRanges(
+    TIME_CONSTANTS.HISTORY_MONTHS,
+    connectorDetails.timezone ?? "UTC",
+    effectiveDate,
+  );
 
   const descriptor: ConnectorRunDescriptor = {
     create: [],
@@ -224,60 +209,54 @@ export async function runSlackConnector(
 
   const now = new Date();
 
-  for (const channelId of channelIds) {
-    for (const { start, end } of weekRanges) {
-      // Generate fileId only if we don't have an existing file
+  for (const channel of channelInfo) {
+    for (const { start, end } of monthRanges) {
       const fileId = createNeedleFileId();
-      const dateKey = formatDateRange(start, end);
-      const ageInMonths =
-        (effectiveDate.getTime() - start.getTime()) /
-        (1000 * 60 * 60 * 24 * 30);
+      const ageInMonths = calculateAgeInMonths(start);
 
       const existingFile = currentFiles.find((f) => {
-        if (!f.title) {
-          throw new Error(
-            `File ${f.id} has no title - this should never happen`,
-          );
-        }
         const metadata = f.metadata as FileMetadata | null;
         return (
-          metadata?.channelId === channelId &&
-          metadata?.weekStart === start.toISOString()
+          metadata?.channelId === channel.id &&
+          metadata?.monthStart === start.toISOString()
         );
       });
 
-      // Use the existing file ID if available, otherwise use the new fileId
       const currentFileId = existingFile?.ndlFileId ?? fileId;
 
-      // Format the title as requested
-      const title =
-        `#${channelId}_week-of_${formatDate(start)}-${formatDate(end)}`.replace(
-          /\s+/g,
-          "_",
-        );
+      // Use channel name in title
+      const title = `#${channel.name}_${formatDate(start)}`.replace(
+        /\s+/g,
+        "_",
+      );
 
       const fileMetadata: FileMetadata = {
-        channelId,
-        weekStart: start.toISOString(),
-        weekEnd: end.toISOString(),
+        channelId: channel.id,
+        monthStart: start.toISOString(),
+        monthEnd: end.toISOString(),
         dataType: "slack_messages",
       };
 
       const fileDescriptor: FileDescriptor = {
-        id: currentFileId, // Use consistent ID
-        url: `slack://messages/${channelId}/${dateKey}`,
+        id: currentFileId,
+        url: `slack://messages?channel=${channel.id}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&timezone=${encodeURIComponent(connectorDetails.timezone ?? "UTC")}`,
         type: "text/plain",
-        title, // Add the title here
+        title,
         metadata: {
           ...fileMetadata,
           connectorId,
         },
       };
 
-      if (ageInMonths > 6 && existingFile) {
+      if (
+        ageInMonths > TIME_CONSTANTS.SYNC_THRESHOLDS.DELETE_AFTER_MONTHS &&
+        existingFile
+      ) {
         descriptor.delete.push({ id: currentFileId });
         filesToDelete.push({ id: currentFileId });
-      } else if (ageInMonths <= 1) {
+      } else if (
+        ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.UPDATE_WITHIN_MONTHS
+      ) {
         if (existingFile) {
           descriptor.update.push(fileDescriptor);
           filesToUpdate.push({
@@ -292,7 +271,10 @@ export async function runSlackConnector(
             title: title, // Add this line
           });
         }
-      } else if (!existingFile && ageInMonths <= 6) {
+      } else if (
+        !existingFile &&
+        ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.CREATE_WITHIN_MONTHS
+      ) {
         descriptor.create.push(fileDescriptor);
         filesToCreate.push({
           id: currentFileId,
@@ -349,7 +331,7 @@ export async function getSlackConnector(
   return {
     ...connector,
     files,
-    channelIds: slackMetadata?.channelIds,
+    channelInfo: slackMetadata?.channelInfo, // Return full channel info
     lastSyncedAt: slackMetadata?.lastSyncedAt,
   };
 }

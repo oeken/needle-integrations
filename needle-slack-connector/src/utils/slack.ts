@@ -1,5 +1,5 @@
 import { env } from "~/env";
-import { type SlackTokenResponse } from "~/server/slack/types";
+import { type SlackOAuthResponse } from "~/server/slack/types";
 
 export const SLACK_BOT_SCOPES = [
   "channels:history",
@@ -36,14 +36,12 @@ export function buildRedirectUri(baseUrl: string): string {
 export function buildSuccessRedirectUrl(
   baseUrl: string,
   accessToken: string,
+  slackUserId: string,
 ): string {
-  return `${baseUrl}/connectors/slack?state=${accessToken}`;
+  return `${baseUrl}/connectors/slack?state=${accessToken}&slackUserId=${slackUserId}`;
 }
 
-export async function exchangeCodeForTokens(
-  code: string,
-  redirectUri: string,
-): Promise<SlackTokenResponse> {
+export async function exchangeCodeForTokens(code: string, redirectUri: string) {
   const tokenUrl = buildSlackTokenUrl();
 
   const response = await fetch(tokenUrl, {
@@ -59,7 +57,7 @@ export async function exchangeCodeForTokens(
     }),
   });
 
-  return response.json() as Promise<SlackTokenResponse>;
+  return response.json() as Promise<SlackOAuthResponse>;
 }
 
 export function validateSlackConfig() {

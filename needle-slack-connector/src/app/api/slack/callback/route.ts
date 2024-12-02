@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { env } from "~/env";
-import { type ZendeskErrorResponse } from "~/server/zendesk/types";
 
 import {
   buildRedirectUri,
@@ -29,28 +28,27 @@ export async function GET(request: Request) {
 
     const tokens = await exchangeCodeForTokens(code, redirectUri);
 
-    console.log({ tokens });
-
-    if ("error" in tokens) {
-      const errorResponse = tokens as unknown as ZendeskErrorResponse;
-
+    if (!tokens.authed_user) {
       return NextResponse.json(
-        {
-          error: errorResponse.error,
-          description: errorResponse.error_description,
-        },
+        { error: "Missing user authentication data" },
         { status: 400 },
       );
     }
 
-    const accessToken =
-      "access_token" in tokens
-        ? tokens.access_token
-        : tokens.authed_user?.access_token;
+    const accessToken = tokens.authed_user.access_token;
+    const slackUserId = tokens.authed_user.id;
+
+    if (!accessToken || !slackUserId) {
+      return NextResponse.json(
+        { error: "Missing access token or user ID" },
+        { status: 400 },
+      );
+    }
 
     const redirectUrl = buildSuccessRedirectUrl(
       env.NEXT_PUBLIC_APP_URL,
       accessToken,
+      slackUserId,
     );
 
     return NextResponse.redirect(redirectUrl);

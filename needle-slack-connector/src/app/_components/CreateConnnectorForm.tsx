@@ -8,7 +8,6 @@ import { Button } from "./atoms/Button";
 import { Select } from "./atoms/Select";
 import { Input } from "./atoms/Input";
 import { Controller, useForm } from "react-hook-form";
-import { HourItems, MinuteItems, TimezoneItems } from "~/utils/date-items";
 
 interface FormValues {
   name: string;
@@ -26,7 +25,7 @@ export function CreateConnectorForm({
   credentials: string;
 }) {
   const router = useRouter();
-  const { selectedChannelIds } = useSlackResources();
+  const { selectedChannels, userTimezone } = useSlackResources();
 
   const form = useForm<FormValues>({
     defaultValues: {
@@ -35,10 +34,11 @@ export function CreateConnectorForm({
       hour: 0,
       minute: 0,
       timezone: "UTC",
+      // timezone: timezone?.timezone ?? "UTC",
     },
   });
 
-  const { mutate: createZendeskConnector, isPending } =
+  const { mutate: createSlackConnector, isPending } =
     api.connectors.create.useMutation({
       onSuccess: () => {
         router.push("/connectors");
@@ -50,12 +50,13 @@ export function CreateConnectorForm({
     // Convert hour and minute to cron format
     const cronJob = `${data.minute} ${data.hour} * * *`;
 
-    createZendeskConnector({
+    createSlackConnector({
       ...data,
       cronJob,
       cronJobTimezone: data.timezone,
       credentials,
-      selectedChannelIds: selectedChannelIds,
+      channels: selectedChannels, // Changed from selectedChannels to match schema
+      timezone: userTimezone?.timezone ?? "UTC",
     });
   };
   const isFormValid =
@@ -112,7 +113,7 @@ export function CreateConnectorForm({
         />
       </div>
 
-      <div className="mb-4">
+      {/* <div className="mb-4">
         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Schedule
         </label>
@@ -163,7 +164,7 @@ export function CreateConnectorForm({
             )}
           />
         </div>
-      </div>
+      </div> */}
       <Button
         isLoading={isPending}
         disabled={!isFormValid}
