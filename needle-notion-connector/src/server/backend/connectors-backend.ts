@@ -12,10 +12,10 @@ import {
   type Session,
   type ConnectorRunDescriptor,
 } from "@needle-ai/needle-sdk";
-
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { notionConnectorsTable, notionPagesTable } from "../db/schema";
+import { Client as NotionClient } from "@notionhq/client";
 
 export async function createNotionConnector(
   request: CreateConnectorRequest,
@@ -23,9 +23,9 @@ export async function createNotionConnector(
 ) {
   const connector = await createConnector(
     {
-      name: "Test Connector",
-      cronJob: "0 0 * * *",
-      cronJobTimezone: "Europe/Berlin",
+      name: request.name,
+      cronJob: request.cronJob,
+      cronJobTimezone: request.cronJobTimezone,
       collectionIds: [request.collectionId],
       credentials: request.notionToken.access_token,
     },
@@ -50,7 +50,7 @@ export async function createNotionConnector(
   }));
   await db.insert(notionConnectorsTable).values(connectorsToInsert);
 
-  await runNotionConnector({ connectorId: connector.id });
+  await runNotionConnector({ connectorId: connector.id }, session);
 
   return connector;
 }
@@ -91,33 +91,56 @@ export async function runNotionConnector(
   { connectorId }: ConnectorRequest,
   session?: Session,
 ) {
-  // acts as access validation
+  let connector;
   if (session) {
-    await getConnector(connectorId, session.id);
+    connector = await getConnector(connectorId, session.id);
+  }
+  if (!connector?.credentials) {
+    throw new Error("notion access token is not found");
   }
 
-  const pages = await db
+  const notion = new NotionClient({ auth: connector.credentials });
+  const ntnSearchResponse = await notion.search({});
+
+  const ndlPages = await db
     .select()
     .from(notionPagesTable)
     .where(eq(notionPagesTable.ndlConnectorId, connectorId));
 
-  const descriptor: ConnectorRunDescriptor = {
-    create: [],
-    update: [],
-    delete: [],
-  };
+  const pagesToCreate = ntnSearchResponse.results.filter((r) => {
+    const ndlPage = ndlPages.find((p) => p.notionPageId === r.id);
+    return ndlPage === undefined;
+  });
 
-  for (const page of pages) {
-    if (page.ndlFileId) {
-      descriptor.update.push({ id: page.ndlFileId });
-    } else {
-      descriptor.create.push({
-        id: createNeedleFileId(),
-        url: page.notionUrl,
-        type: "text/plain",
-      });
-    }
-  }
+  const pagesToUpdate = ntnSearchResponse.results.reduce(
+    (acc, r) => {
+      const ndlPage = ndlPages.find((p) => p.notionPageId === r.id);
+      if (!ndlPage) {
+        return acc;
+      }
+      if (ndlPage.notionLastEditedTime === r.last_edited_time) {
+        return acc;
+      }
+      acc.push(ndlPage);
+      return acc;
+    },
+    [] as typeof ndlPages,
+  );
+
+  const pagesToDelete = ndlPages.filter((p) => {
+    const page = ntnSearchResponse.results.find((r) => r.id === p.notionPageId);
+    return page === undefined;
+  });
+
+  const descriptor: ConnectorRunDescriptor = {
+    create: pagesToCreate.map((p) => ({
+      id: createNeedleFileId(),
+      url: p.url,
+      type: "text/plain",
+    })),
+    update: pagesToUpdate.map((p) => ({ id: p.ndlFileId })),
+    delete: pagesToDelete.map((p) => ({ id: p.ndlFileId })),
+  };
 
   await publishConnectorRun(connectorId, descriptor);
 }

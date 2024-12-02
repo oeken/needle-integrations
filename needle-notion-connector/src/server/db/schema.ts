@@ -13,7 +13,7 @@ export const createTable = pgTableCreator((name) => name);
 export const notionPagesTable = createTable("notion_pages", {
   id: serial("id").primaryKey(),
   ndlConnectorId: varchar("ndl_connector_id", { length: 256 }).notNull(),
-  ndlFileId: varchar("ndl_file_id", { length: 256 }),
+  ndlFileId: varchar("ndl_file_id", { length: 256 }).notNull(),
   notionPageId: varchar("notion_page_id", { length: 256 }).notNull(),
   notionLastEditedTime: varchar("notion_last_edited_time").notNull(),
   notionUrl: text("notion_url").notNull(),
