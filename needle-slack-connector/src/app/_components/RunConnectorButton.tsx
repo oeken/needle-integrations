@@ -13,7 +13,7 @@ export function RunConnectorButton({ connectorId }: { connectorId: string }) {
     <button
       onClick={() => {
         const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + 45);
+        futureDate.setMonth(futureDate.getMonth() + 6);
         runWebConnector({ connectorId, simulateDate: futureDate });
       }}
       className="mb-2 ml-4 mt-auto h-6 w-6 rounded-full bg-blue-500 text-white hover:bg-blue-600"

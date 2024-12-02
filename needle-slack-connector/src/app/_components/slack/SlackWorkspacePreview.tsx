@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useSlackResources } from "../providers/SlackResourcesProvider";
@@ -6,8 +7,6 @@ import { type Collection } from "@needle-ai/needle-sdk";
 import { formatDateTime } from "~/utils/format-date-time";
 import { SlackResourceInfo } from "./SlackResourceInfo";
 import { type SlackChannel } from "~/server/db/schema"; // Import the type
-
-import Image from "next/image";
 
 export function SlackWorkspacePreview({
   collections,

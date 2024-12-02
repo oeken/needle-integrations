@@ -13,13 +13,11 @@ interface SlackUserResponse {
   };
 }
 
-export class SlackService {
-  constructor(private readonly accessToken: string) {}
-
-  async getWorkspaces() {
+export function createSlackService(accessToken: string) {
+  const getWorkspaces = async () => {
     const response = await fetch("https://slack.com/api/team.info", {
       headers: {
-        Authorization: `Bearer ${this.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
     });
@@ -27,9 +25,9 @@ export class SlackService {
     const data = (await response.json()) as unknown;
 
     return data;
-  }
+  };
 
-  async getChannels() {
+  const getChannels = async () => {
     const params = new URLSearchParams({
       types: ["public_channel", "private_channel"].join(","),
     });
@@ -38,7 +36,7 @@ export class SlackService {
       `https://slack.com/api/conversations.list?${params}`,
       {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       },
@@ -47,15 +45,15 @@ export class SlackService {
     const data = (await response.json()) as unknown;
 
     return data;
-  }
+  };
 
-  async getMessages(channelIds: string[]) {
+  const getMessages = async (channelIds: string[]) => {
     const messagesPromises = channelIds.map((channelId) =>
       fetch(
         `https://slack.com/api/conversations.history?channel=${channelId}`,
         {
           headers: {
-            Authorization: `Bearer ${this.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
         },
@@ -65,14 +63,14 @@ export class SlackService {
     const results = (await Promise.all(messagesPromises)) as unknown[];
 
     return results;
-  }
+  };
 
-  async getUserTimezone(userId: string): Promise<TimezoneInfo> {
+  const getUserTimezone = async (userId: string): Promise<TimezoneInfo> => {
     const response = await fetch(
       `https://slack.com/api/users.info?user=${userId}`,
       {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       },
@@ -91,9 +89,12 @@ export class SlackService {
       timezoneLabel: data.user.tz_label,
       timezoneOffset: data.user.tz_offset,
     };
-  }
-}
+  };
 
-export function createSlackService(accessToken: string) {
-  return new SlackService(accessToken);
+  return {
+    getWorkspaces,
+    getChannels,
+    getMessages,
+    getUserTimezone,
+  };
 }

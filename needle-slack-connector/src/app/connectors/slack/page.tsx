@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { listCollections } from "@needle-ai/needle-sdk";
 import { getSession } from "~/utils/session-utils";

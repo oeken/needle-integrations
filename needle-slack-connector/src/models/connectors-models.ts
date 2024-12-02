@@ -6,7 +6,7 @@ export const CreateConnectorRequestSchema = z.object({
   credentials: z.string(),
   cronJob: z.string(),
   cronJobTimezone: z.string(),
-  channels: z.array(z.object({ id: z.string(), name: z.string() })), // Ensure this matches the expected structure
+  channels: z.array(z.object({ id: z.string(), name: z.string() })),
   timezone: z.string(),
 });
 

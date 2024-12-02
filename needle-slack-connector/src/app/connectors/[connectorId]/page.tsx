@@ -8,15 +8,17 @@ import { Header } from "~/app/_components/atoms/Header";
 import { DeleteConnectorButton } from "~/app/_components/DeleteConnectorButton";
 import { RunConnectorButton } from "~/app/_components/RunConnectorButton";
 
-type ConnectorPageProps = { params: { connectorId: string } };
+interface ConnectorPageProps {
+  params: {
+    connectorId: string;
+  };
+}
 
 export default async function ConnectorPage({
   params: { connectorId },
 }: ConnectorPageProps) {
   const { user } = await getSession();
   const connector = await api.connectors.get({ connectorId });
-
-  console.log({ connector });
 
   return (
     <>
@@ -51,14 +53,12 @@ export default async function ConnectorPage({
           <div className="mt-4 flex flex-wrap gap-2 px-2">
             <span className="text-sm font-bold">Files: </span>
             {connector.files.map((file) => (
-              <a
+              <span
                 className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
                 key={file.id}
-                href={file.url}
-                target="_blank"
               >
                 ↗ {file.title}
-              </a>
+              </span>
             ))}
           </div>
           <DeleteConnectorButton connectorId={connectorId} />

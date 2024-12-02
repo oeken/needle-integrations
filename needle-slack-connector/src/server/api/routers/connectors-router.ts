@@ -1,12 +1,12 @@
 import {
-  ConnectorRequestSchema,
   CreateConnectorRequestSchema,
+  ConnectorRequestSchema,
   SlackAuthSchema,
+  type SlackWorkspace,
   SlackChannelRequestSchema,
   type SlackChannelsResponse,
   SlackMessagesRequestSchema,
   type SlackMessagesResponse,
-  type SlackWorkspace,
   SlackUserTimezoneSchema,
 } from "~/models/connectors-models";
 import { createTRPCRouter, procedure } from "~/server/api/trpc";

@@ -23,7 +23,6 @@ export const env = createEnv({
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_APP_URL: z.string().url(),
     NEXT_PUBLIC_SLACK_CLIENT_ID: z.string(),
-    NEXT_PUBLIC_ZENDESK_SUBDOMAIN: z.string(),
   },
 
   /**
@@ -36,7 +35,7 @@ export const env = createEnv({
     SLACK_CLIENT_SECRET: process.env.SLACK_CLIENT_SECRET,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SLACK_CLIENT_ID: process.env.NEXT_PUBLIC_SLACK_CLIENT_ID,
-    NEXT_PUBLIC_ZENDESK_SUBDOMAIN: process.env.NEXT_PUBLIC_ZENDESK_SUBDOMAIN,
+
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**
