@@ -78,12 +78,7 @@ export function CreateConnectorForm({
       onSubmit={form.handleSubmit(onSubmit)}
       className="flex max-w-2xl flex-col gap-6"
     >
-      <div className="mt-2 flex flex-col gap-2">
-        <div className="text-lg font-semibold">
-          Selected {notionSearchResponse.results.length} pages:
-        </div>
-        <NotionConnectorPreview searchResponse={notionSearchResponse} />
-      </div>
+      <NotionConnectorPreview searchResponse={notionSearchResponse} />
 
       <div className="flex flex-col">
         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">

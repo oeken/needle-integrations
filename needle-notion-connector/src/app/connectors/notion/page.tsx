@@ -42,7 +42,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
           >
             ← Back
           </Link>
-          <h1 className="text-5xl font-extrabold tracking-tight">
+          <h1 className="mb-6 text-5xl font-extrabold tracking-tight">
             Create Connector
           </h1>
 
