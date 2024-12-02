@@ -1,10 +1,10 @@
-import {
+import type {
   DatabaseObjectResponse,
   PageObjectResponse,
   SearchResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 
-export function NotionPreview({
+export function NotionConnectorPreview({
   searchResponse,
 }: {
   searchResponse: SearchResponse;

@@ -3,12 +3,8 @@
 import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
-import {
-  DatabaseObjectResponse,
-  PageObjectResponse,
-  type SearchResponse,
-} from "@notionhq/client/build/src/api-endpoints";
-import { NotionPreview } from "./NotionPreview";
+import { type SearchResponse } from "@notionhq/client/build/src/api-endpoints";
+import { NotionConnectorPreview } from "./NotionConnectorPreview";
 import { type NotionToken } from "~/models/notion-models";
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "./atoms/Button";
@@ -86,7 +82,7 @@ export function CreateConnectorForm({
         <div className="text-lg font-semibold">
           Selected {notionSearchResponse.results.length} pages:
         </div>
-        <NotionPreview searchResponse={notionSearchResponse} />
+        <NotionConnectorPreview searchResponse={notionSearchResponse} />
       </div>
 
       <div className="flex flex-col">
@@ -184,14 +180,12 @@ export function CreateConnectorForm({
         </div>
       </div>
 
-      <Button
-        isLoading={isPending}
-        disabled={!isFormValid}
-        className="ml-auto"
+      <button
         type="submit"
+        className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
       >
         Create Connector
-      </Button>
+      </button>
     </form>
   );
 }

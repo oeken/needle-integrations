@@ -10,13 +10,14 @@ import { env } from "~/env";
 import { type NotionToken } from "~/models/notion-models";
 import { Client as NotionClient } from "@notionhq/client";
 import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
+import Image from "next/image";
+import { NotionPageHeader } from "~/app/_components/NotionPageHeader";
 
 type NotionPageProps = { searchParams: { token?: string } };
 
 export default async function NotionPage({ searchParams }: NotionPageProps) {
   const { user, session } = await getSession();
   const collections = await listCollections(session.id);
-  let error;
 
   if (!searchParams.token) {
     redirect(env.NOTION_OAUTH_URL);
@@ -31,6 +32,8 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
     <>
       <Header user={user} />
 
+      <NotionPageHeader />
+
       <main className="flex grow flex-col">
         <div className="mx-auto flex w-full flex-col md:w-[700px]">
           <Link
@@ -42,7 +45,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
           <h1 className="text-5xl font-extrabold tracking-tight">
             Create Connector
           </h1>
-          {error && <h2>Error: {error}</h2>}
+
           <CreateConnectorForm
             collections={collections}
             notionSearchResponse={searchResponse}
