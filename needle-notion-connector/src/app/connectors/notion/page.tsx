@@ -45,8 +45,8 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
           {error && <h2>Error: {error}</h2>}
           <CreateConnectorForm
             collections={collections}
-            searchResponse={searchResponse}
-            token={token}
+            notionSearchResponse={searchResponse}
+            notionToken={token}
           />
         </div>
       </main>

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
-import { SearchResponse } from "@notionhq/client/build/src/api-endpoints";
+import {
+  DatabaseObjectResponse,
+  PageObjectResponse,
+  type SearchResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { NotionPreview } from "./NotionPreview";
 import { type NotionToken } from "~/models/notion-models";
 import { Controller, useForm } from "react-hook-form";
@@ -23,12 +26,12 @@ interface FormValues {
 
 export function CreateConnectorForm({
   collections,
-  searchResponse,
-  token,
+  notionSearchResponse,
+  notionToken,
 }: {
   collections: Collection[];
-  searchResponse: SearchResponse;
-  token: NotionToken;
+  notionSearchResponse: SearchResponse;
+  notionToken: NotionToken;
 }) {
   const router = useRouter();
 
@@ -58,8 +61,8 @@ export function CreateConnectorForm({
       ...data,
       cronJob,
       cronJobTimezone: data.timezone,
-      notionToken: token,
-      notionPages: searchResponse.results.map((p) => ({
+      notionToken: notionToken,
+      notionPages: notionSearchResponse.results.map((p) => ({
         id: p.id,
         last_edited_time: p.last_edited_time,
         url: p.url,
@@ -81,9 +84,9 @@ export function CreateConnectorForm({
     >
       <div className="mt-2 flex flex-col gap-2">
         <div className="text-lg font-semibold">
-          Selected {searchResponse.results.length} pages:
+          Selected {notionSearchResponse.results.length} pages:
         </div>
-        <NotionPreview searchResponse={searchResponse} />
+        <NotionPreview searchResponse={notionSearchResponse} />
       </div>
 
       <div className="flex flex-col">
