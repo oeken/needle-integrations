@@ -78,8 +78,6 @@ export function createSlackService(accessToken: string) {
 
     const data = (await response.json()) as SlackUserResponse;
 
-    console.log({ data });
-
     if (!data.ok || !data.user) {
       throw new Error("Failed to fetch user timezone");
     }

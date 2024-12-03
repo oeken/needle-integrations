@@ -8,7 +8,6 @@ import {
   listConnectors,
   deleteConnector,
   publishConnectorRun,
-  createNeedleFileId,
   type Session,
   type ConnectorRunDescriptor,
 } from "@needle-ai/needle-sdk";
@@ -21,19 +20,7 @@ import {
   handleDatabaseUpdates,
   updateLastSynced,
 } from "./slack-db";
-import { TIME_CONSTANTS } from "~/utils/slack";
-import {
-  calculateAgeInMonths,
-  formatDate,
-  generateMonthRanges,
-} from "./dif-utils";
-
-export interface FileMetadata {
-  channelId: string;
-  monthStart: string;
-  monthEnd: string;
-  dataType: string;
-}
+import { createNewFiles, processExistingFiles } from "./dif-utils";
 
 export async function createSlackConnector(
   params: CreateConnectorRequest,
@@ -91,129 +78,47 @@ export async function runSlackConnector(
   }
 
   const currentFiles = await getCurrentFiles(connectorId);
+
   const channelInfo = connectorDetails.channelInfo;
   if (!channelInfo?.length) {
     throw new Error(`No channels found for connector ID: ${connectorId}`);
   }
 
-  const descriptor: ConnectorRunDescriptor = {
-    create: [],
-    update: [],
-    delete: [],
-  };
-
-  const filesToCreate: { id: string; metadata: FileMetadata; title: string }[] =
-    [];
-  const filesToUpdate: { id: string; metadata: FileMetadata }[] = [];
-  const filesToDelete: { id: string }[] = [];
-
-  // First, handle existing files
-  for (const existingFile of currentFiles) {
-    const metadata = existingFile.metadata as FileMetadata;
-    const fileDate = new Date(metadata.monthStart);
-    const monthDifference = calculateAgeInMonths(effectiveDate, fileDate);
-
-    if (
-      Math.abs(monthDifference) >=
-      TIME_CONSTANTS.SYNC_THRESHOLDS.DELETE_AFTER_MONTHS
-    ) {
-      descriptor.delete.push({ id: existingFile.ndlFileId });
-      filesToDelete.push({ id: existingFile.ndlFileId });
-    } else if (
-      Math.abs(monthDifference) <=
-      TIME_CONSTANTS.SYNC_THRESHOLDS.UPDATE_WITHIN_MONTHS
-    ) {
-      const fileDescriptor = {
-        id: existingFile.ndlFileId,
-        url: `slack://messages?channel=${metadata.channelId}&start_time=${metadata.monthStart}&end_time=${metadata.monthEnd}&timezone=${encodeURIComponent(connectorDetails.timezone ?? "UTC")}`,
-        type: "text/plain",
-        title: existingFile.title,
-        metadata: {
-          ...metadata,
-          connectorId,
-        },
-      };
-      descriptor.update.push(fileDescriptor);
-      filesToUpdate.push({
-        id: existingFile.ndlFileId,
-        metadata: metadata,
-      });
-    }
-  }
-
-  // Then handle creation of new files
-  const monthRanges = generateMonthRanges(
-    connectorDetails.timezone ?? "UTC",
+  const {
+    update,
+    delete: deleteFiles,
+    filesToUpdate,
+    filesToDelete,
+  } = processExistingFiles(
+    currentFiles,
     effectiveDate,
+    connectorId,
+    connectorDetails.timezone ?? "UTC",
   );
 
-  for (const channel of channelInfo) {
-    for (const { start, end } of monthRanges) {
-      const fileId = createNeedleFileId();
-      const ageInMonths = calculateAgeInMonths(start, effectiveDate);
+  const { create, filesToCreate } = createNewFiles(
+    channelInfo,
+    currentFiles,
+    effectiveDate,
+    connectorId,
+    connectorDetails.timezone ?? "UTC",
+  );
 
-      const existingFile = currentFiles.find((f) => {
-        const metadata = f.metadata as FileMetadata;
-        return (
-          metadata.channelId === channel.id &&
-          metadata.monthStart === start.toISOString()
-        );
-      });
-
-      // Only process files within our keeping window
-      if (ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.CREATE_WITHIN_MONTHS) {
-        const title = `#${channel.name}_${formatDate(start)}`.replace(
-          /\s+/g,
-          "_",
-        );
-
-        const fileMetadata = {
-          channelId: channel.id,
-          monthStart: start.toISOString(),
-          monthEnd: end.toISOString(),
-          dataType: "slack_messages",
-        };
-
-        const fileDescriptor = {
-          id: existingFile?.ndlFileId ?? fileId,
-          url: `slack://messages?channel=${channel.id}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&timezone=${encodeURIComponent(connectorDetails.timezone ?? "UTC")}`,
-          type: "text/plain" as const,
-          title,
-          metadata: {
-            ...fileMetadata,
-            connectorId,
-          },
-        };
-
-        if (
-          existingFile &&
-          ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.UPDATE_WITHIN_MONTHS &&
-          existingFile?.ndlFileId
-        ) {
-          descriptor.update.push(fileDescriptor);
-          filesToUpdate.push({
-            id: existingFile.ndlFileId,
-            metadata: fileMetadata,
-          });
-        } else if (!existingFile) {
-          descriptor.create.push(fileDescriptor);
-          filesToCreate.push({
-            id: fileId,
-            metadata: fileMetadata,
-            title,
-          });
-        }
-      }
-    }
-  }
+  const descriptor: ConnectorRunDescriptor = {
+    create,
+    update,
+    delete: deleteFiles,
+  };
 
   await publishConnectorRun(connectorId, descriptor);
+
   await handleDatabaseUpdates(
     connectorId,
     filesToCreate,
     filesToUpdate,
     filesToDelete,
   );
+
   await updateLastSynced(connectorId);
 }
 

@@ -37,7 +37,6 @@ export async function handleDatabaseUpdates(
 ) {
   // Handle creates
   if (createFiles.length > 0) {
-    console.log(`Creating ${createFiles.length} files...`);
     const filesToInsert: FileInsert[] = createFiles.map((file) => ({
       ndlConnectorId: connectorId,
       ndlFileId: file.id,
