@@ -1,12 +1,11 @@
 import { db } from "../db";
 import {
   type FileInsert,
+  type FileMetadata,
   filesTable,
   slackConnectorsTable,
 } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
-
-import { type FileMetadata } from "./connectors-backend";
 
 export async function getConnectorDetails(connectorId: string) {
   return await db
@@ -36,8 +35,6 @@ export async function handleDatabaseUpdates(
   updateFiles: { id: string; metadata: FileMetadata }[],
   deleteFiles: { id: string }[],
 ) {
-  console.log("Starting database updates...");
-
   // Handle creates
   if (createFiles.length > 0) {
     console.log(`Creating ${createFiles.length} files...`);
@@ -55,7 +52,6 @@ export async function handleDatabaseUpdates(
 
   // Handle updates
   for (const file of updateFiles) {
-    console.log(`Updating file ${file.id}...`);
     await db
       .update(filesTable)
       .set({
@@ -72,7 +68,6 @@ export async function handleDatabaseUpdates(
 
   // Handle deletes
   if (deleteFiles.length > 0) {
-    console.log(`Deleting ${deleteFiles.length} files...`);
     const fileIds = deleteFiles.map((f) => f.id);
     await db
       .delete(filesTable)
@@ -83,6 +78,4 @@ export async function handleDatabaseUpdates(
         ),
       );
   }
-
-  console.log("Database updates completed.");
 }

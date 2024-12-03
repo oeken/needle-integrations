@@ -21,20 +21,12 @@ import {
   handleDatabaseUpdates,
   updateLastSynced,
 } from "./slack-db";
-
-interface SlackConnectorRequest extends CreateConnectorRequest {
-  channels: { id: string; name: string }[];
-  timezone: string;
-}
-
-type AllowedMimeType =
-  | "text/plain"
-  | "application/vnd.google-apps.document"
-  | "application/vnd.google-apps.presentation"
-  | "application/vnd.google-apps.spreadsheet"
-  | "application/pdf"
-  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  | "text/calendar";
+import { TIME_CONSTANTS } from "~/utils/slack";
+import {
+  calculateAgeInMonths,
+  formatDate,
+  generateMonthRanges,
+} from "./dif-utils";
 
 export interface FileMetadata {
   channelId: string;
@@ -43,65 +35,8 @@ export interface FileMetadata {
   dataType: string;
 }
 
-const TIME_CONSTANTS = {
-  SYNC_THRESHOLDS: {
-    DELETE_AFTER_MONTHS: 3, // Delete files older than 3 months from reference date
-    UPDATE_WITHIN_MONTHS: 1, // Update files within 1 month of reference date
-    CREATE_WITHIN_MONTHS: 2, // Keep/create files up to 2 months from reference date
-  },
-  MS_PER_MONTH: 1000 * 60 * 60 * 24 * 30,
-} as const;
-
-function generateMonthRanges(
-  timezone: string,
-  referenceDate: Date,
-): { start: Date; end: Date }[] {
-  const monthRanges = [];
-  const effectiveDate = referenceDate;
-
-  // Start from CREATE_WITHIN_MONTHS ago to include update window
-  const startDate = new Date(effectiveDate);
-  startDate.setMonth(
-    startDate.getMonth() - TIME_CONSTANTS.SYNC_THRESHOLDS.CREATE_WITHIN_MONTHS,
-  );
-  startDate.setDate(1);
-  startDate.setHours(0, 0, 0, 0);
-
-  const endDate = new Date(effectiveDate);
-  endDate.setDate(1); // First day of the reference month
-
-  const currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    const monthStart = new Date(currentDate);
-    const monthEnd = new Date(currentDate);
-    monthEnd.setMonth(monthEnd.getMonth() + 1);
-    monthEnd.setDate(0);
-    monthEnd.setHours(23, 59, 59, 999);
-
-    monthRanges.push({ start: monthStart, end: monthEnd });
-    currentDate.setMonth(currentDate.getMonth() + 1);
-  }
-
-  return monthRanges;
-}
-
-function formatDate(date: Date): string {
-  return date
-    .toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    })
-    .replace(/\s+/g, "_");
-}
-
-function calculateAgeInMonths(date: Date, referenceDate: Date): number {
-  return (
-    (referenceDate.getTime() - date.getTime()) / TIME_CONSTANTS.MS_PER_MONTH
-  );
-}
-
 export async function createSlackConnector(
-  params: SlackConnectorRequest,
+  params: CreateConnectorRequest,
   session: Session,
 ) {
   if (!params.channels.length) {
@@ -161,11 +96,6 @@ export async function runSlackConnector(
     throw new Error(`No channels found for connector ID: ${connectorId}`);
   }
 
-  const monthRanges = generateMonthRanges(
-    connectorDetails.timezone ?? "UTC",
-    effectiveDate,
-  );
-
   const descriptor: ConnectorRunDescriptor = {
     create: [],
     update: [],
@@ -177,22 +107,46 @@ export async function runSlackConnector(
   const filesToUpdate: { id: string; metadata: FileMetadata }[] = [];
   const filesToDelete: { id: string }[] = [];
 
-  // First, handle existing files that are too old
+  // First, handle existing files
   for (const existingFile of currentFiles) {
     const metadata = existingFile.metadata as FileMetadata;
     const fileDate = new Date(metadata.monthStart);
-    const ageInMonths = calculateAgeInMonths(fileDate, effectiveDate);
+    const monthDifference = calculateAgeInMonths(effectiveDate, fileDate);
 
     if (
-      ageInMonths > TIME_CONSTANTS.SYNC_THRESHOLDS.DELETE_AFTER_MONTHS &&
-      existingFile.ndlFileId
+      Math.abs(monthDifference) >=
+      TIME_CONSTANTS.SYNC_THRESHOLDS.DELETE_AFTER_MONTHS
     ) {
       descriptor.delete.push({ id: existingFile.ndlFileId });
       filesToDelete.push({ id: existingFile.ndlFileId });
+    } else if (
+      Math.abs(monthDifference) <=
+      TIME_CONSTANTS.SYNC_THRESHOLDS.UPDATE_WITHIN_MONTHS
+    ) {
+      const fileDescriptor = {
+        id: existingFile.ndlFileId,
+        url: `slack://messages?channel=${metadata.channelId}&start_time=${metadata.monthStart}&end_time=${metadata.monthEnd}&timezone=${encodeURIComponent(connectorDetails.timezone ?? "UTC")}`,
+        type: "text/plain",
+        title: existingFile.title,
+        metadata: {
+          ...metadata,
+          connectorId,
+        },
+      };
+      descriptor.update.push(fileDescriptor);
+      filesToUpdate.push({
+        id: existingFile.ndlFileId,
+        metadata: metadata,
+      });
     }
   }
 
-  // Then process the current window
+  // Then handle creation of new files
+  const monthRanges = generateMonthRanges(
+    connectorDetails.timezone ?? "UTC",
+    effectiveDate,
+  );
+
   for (const channel of channelInfo) {
     for (const { start, end } of monthRanges) {
       const fileId = createNeedleFileId();
@@ -223,7 +177,7 @@ export async function runSlackConnector(
         const fileDescriptor = {
           id: existingFile?.ndlFileId ?? fileId,
           url: `slack://messages?channel=${channel.id}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&timezone=${encodeURIComponent(connectorDetails.timezone ?? "UTC")}`,
-          type: "text/plain" as AllowedMimeType,
+          type: "text/plain" as const,
           title,
           metadata: {
             ...fileMetadata,
@@ -252,11 +206,6 @@ export async function runSlackConnector(
       }
     }
   }
-
-  console.log("Files to create:", filesToCreate.length);
-  console.log("Files to update:", filesToUpdate.length);
-  console.log("Files to delete:", filesToDelete.length);
-  console.log("descriptor", descriptor);
 
   await publishConnectorRun(connectorId, descriptor);
   await handleDatabaseUpdates(

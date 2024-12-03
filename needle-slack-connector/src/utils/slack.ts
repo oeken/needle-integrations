@@ -1,6 +1,15 @@
 import { env } from "~/env";
 import { type SlackOAuthResponse } from "~/server/slack/types";
 
+export const TIME_CONSTANTS = {
+  SYNC_THRESHOLDS: {
+    DELETE_AFTER_MONTHS: 3, // Delete files older than 3 months from reference date
+    UPDATE_WITHIN_MONTHS: 1, // Update files within 1 month of reference date
+    CREATE_WITHIN_MONTHS: 2, // Keep/create files up to 2 months from reference date
+  },
+  MS_PER_MONTH: 1000 * 60 * 60 * 24 * 30,
+} as const;
+
 export const SLACK_BOT_SCOPES = [
   "channels:history",
   "channels:read",
