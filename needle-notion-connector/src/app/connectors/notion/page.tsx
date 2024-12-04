@@ -10,7 +10,6 @@ import { env } from "~/env";
 import { type NotionToken } from "~/models/notion-models";
 import { Client as NotionClient } from "@notionhq/client";
 import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
-import Image from "next/image";
 import { NotionPageHeader } from "~/app/_components/NotionPageHeader";
 
 type NotionPageProps = { searchParams: { token?: string } };

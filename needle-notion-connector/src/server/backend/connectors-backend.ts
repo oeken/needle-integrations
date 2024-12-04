@@ -16,6 +16,10 @@ import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { notionConnectorsTable, notionPagesTable } from "../db/schema";
 import { Client as NotionClient } from "@notionhq/client";
+import type {
+  DatabaseObjectResponse,
+  PageObjectResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 
 export async function createNotionConnector(
   request: CreateConnectorRequest,
@@ -100,19 +104,23 @@ export async function runNotionConnector(
   }
 
   const notion = new NotionClient({ auth: connector.credentials });
-  const ntnSearchResponse = await notion.search({});
+  const notionSearchResponse = await notion.search({});
+  const notionResults = notionSearchResponse.results as (
+    | PageObjectResponse
+    | DatabaseObjectResponse
+  )[];
 
   const ndlPages = await db
     .select()
     .from(notionPagesTable)
     .where(eq(notionPagesTable.ndlConnectorId, connectorId));
 
-  const pagesToCreate = ntnSearchResponse.results.filter((r) => {
+  const pagesToCreate = notionResults.filter((r) => {
     const ndlPage = ndlPages.find((p) => p.notionPageId === r.id);
     return ndlPage === undefined;
   });
 
-  const pagesToUpdate = ntnSearchResponse.results.reduce(
+  const pagesToUpdate = notionResults.reduce(
     (acc, r) => {
       const ndlPage = ndlPages.find((p) => p.notionPageId === r.id);
       if (!ndlPage) {
@@ -128,7 +136,7 @@ export async function runNotionConnector(
   );
 
   const pagesToDelete = ndlPages.filter((p) => {
-    const page = ntnSearchResponse.results.find((r) => r.id === p.notionPageId);
+    const page = notionResults.find((r) => r.id === p.notionPageId);
     return page === undefined;
   });
 

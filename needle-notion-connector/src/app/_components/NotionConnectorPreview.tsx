@@ -32,7 +32,10 @@ export function NotionConnectorPreview({
 
       return false;
     })
-    .slice(PAGE_SIZE * (page - 1), PAGE_SIZE * page);
+    .slice(PAGE_SIZE * (page - 1), PAGE_SIZE * page) as (
+    | PageObjectResponse
+    | DatabaseObjectResponse
+  )[];
 
   return (
     <div className="flex flex-col gap-2">

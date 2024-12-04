@@ -3,7 +3,11 @@
 import { api } from "~/trpc/react";
 import { type Collection } from "@needle-ai/needle-sdk";
 import { useRouter } from "next/navigation";
-import { type SearchResponse } from "@notionhq/client/build/src/api-endpoints";
+import type {
+  DatabaseObjectResponse,
+  PageObjectResponse,
+  SearchResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { NotionConnectorPreview } from "./NotionConnectorPreview";
 import { type NotionToken } from "~/models/notion-models";
 import { Controller, useForm } from "react-hook-form";
@@ -53,12 +57,17 @@ export function CreateConnectorForm({
     // Convert hour and minute to cron format
     const cronJob = `${data.minute} ${data.hour} * * *`;
 
+    const results = notionSearchResponse.results as (
+      | PageObjectResponse
+      | DatabaseObjectResponse
+    )[];
+
     createNotionConnector({
       ...data,
       cronJob,
       cronJobTimezone: data.timezone,
       notionToken: notionToken,
-      notionPages: notionSearchResponse.results.map((p) => ({
+      notionPages: results.map((p) => ({
         id: p.id,
         last_edited_time: p.last_edited_time,
         url: p.url,
