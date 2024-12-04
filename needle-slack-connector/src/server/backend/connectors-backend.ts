@@ -28,11 +28,10 @@ import {
 import {
   computeCanvasDiff,
   createNewFiles,
-  type ExistingFile,
-  type LiveCanvas,
   processExistingFiles,
 } from "./dif-utils";
 import { createSlackService } from "../slack/service";
+import { type ExistingFile } from "../slack/types";
 
 export async function createSlackConnector(
   params: CreateConnectorRequest,
@@ -79,26 +78,34 @@ export async function runSlackConnector(
     throw new Error("Session required for connector run");
   }
 
-  const connector = await getConnector(connectorId, session.id);
-  if (!connector) {
-    throw new Error(`No connector found for ID: ${connectorId}`);
-  }
+  const [connector, connectorDetails] = await Promise.all([
+    getConnector(connectorId, session.id),
+    getConnectorDetails(connectorId),
+  ]);
 
-  const connectorDetails = await getConnectorDetails(connectorId);
-  if (!connectorDetails) {
+  if (!connector) throw new Error(`No connector found for ID: ${connectorId}`);
+  if (!connectorDetails)
     throw new Error(`No Slack connector found for ID: ${connectorId}`);
-  }
+
   console.log("Connector details:", connectorDetails);
 
   const currentFiles = await getCurrentFiles(connectorId);
   console.log("Current files:", currentFiles);
 
-  // Separate current files into message files and canvas files
-  const messageFiles = currentFiles.filter(
-    (f) => f.metadata.dataType === "slack_messages",
-  );
-  const canvasFiles = currentFiles.filter(
-    (f) => f.metadata.dataType === "canvas",
+  // Improved file type separation
+  const { messageFiles, canvasFiles } = currentFiles.reduce(
+    (acc, file) => {
+      if (file.metadata.dataType === "slack_messages") {
+        acc.messageFiles.push(file);
+      } else if (file.metadata.dataType === "canvas") {
+        acc.canvasFiles.push(file);
+      }
+      return acc;
+    },
+    { messageFiles: [], canvasFiles: [] } as {
+      messageFiles: typeof currentFiles;
+      canvasFiles: typeof currentFiles;
+    },
   );
 
   console.log("Message files:", messageFiles);
@@ -131,7 +138,7 @@ export async function runSlackConnector(
   const slackService = createSlackService(connector.credentials ?? "");
 
   // Fetch live canvases
-  const liveCanvases: LiveCanvas[] = [];
+  const liveCanvases = [];
   for (const channel of connectorDetails.channelInfo) {
     const canvasResponse = await slackService.getCanvases(channel.id);
     if (canvasResponse.ok && canvasResponse.files) {
@@ -149,36 +156,35 @@ export async function runSlackConnector(
   }
   console.log("Live canvases:", liveCanvases);
 
-  // Compute canvas differences
+  // Compute canvas differences and prepare file maps
   const canvasDiff = computeCanvasDiff(
     canvasFiles.map((file) => ({
       ndlFileId: file.ndlFileId,
       metadata: file.metadata as CanvasFileMetadata,
       updatedAt: file.updatedAt,
     })),
-    liveCanvases.map((canvas: LiveCanvas) => ({
+    liveCanvases.map((canvas) => ({
       channelId: canvas.channelId,
       originId: canvas.originId,
       url: canvas.url,
       title: canvas.title,
       createdAt: canvas.createdAt,
       updatedAt: canvas.updatedAt,
-      dataType: "canvas" as const,
+      dataType: "canvas",
     })),
   );
-  console.log("Canvas diff:", canvasDiff);
+
   const canvasFileMap = new Map(
     canvasFiles.map((file) => [
       `${(file.metadata as CanvasFileMetadata).channelId}-${(file.metadata as CanvasFileMetadata).originId}`,
       file.ndlFileId,
     ]),
   );
-  console.log("Canvas file map:", canvasFileMap);
-  // Prepare canvas files for database operations
-  const canvasFilesToCreate = canvasDiff.create.map((canvas) => {
-    const fileId = createNeedleFileId();
-    return {
-      id: fileId,
+
+  // Prepare canvas operations
+  const [canvasFilesToCreate, canvasFilesToUpdate, canvasFilesToDelete] = [
+    canvasDiff.create.map((canvas) => ({
+      id: createNeedleFileId(),
       metadata: {
         channelId: canvas.channelId,
         dataType: "canvas" as const,
@@ -187,26 +193,30 @@ export async function runSlackConnector(
         url: canvas.url,
       },
       title: canvas.title,
-    };
-  });
-  console.log("Canvas files to create:", canvasFilesToCreate);
-  const canvasFilesToUpdate = canvasDiff.update.map((canvas) => ({
-    id: canvasFileMap.get(`${canvas.channelId}-${canvas.originId}`)!,
-    metadata: {
-      channelId: canvas.channelId,
-      dataType: "canvas" as const,
-      originId: canvas.originId,
+    })),
+    canvasDiff.update.map((canvas) => ({
+      id: canvasFileMap.get(`${canvas.channelId}-${canvas.originId}`)!,
+      metadata: {
+        channelId: canvas.channelId,
+        dataType: "canvas" as const,
+        originId: canvas.originId,
+        title: canvas.title,
+        url: canvas.url,
+      },
       title: canvas.title,
-      url: canvas.url,
-    },
-    title: canvas.title,
-  }));
-  console.log("Canvas files to update:", canvasFilesToUpdate);
+    })),
+    canvasDiff.delete.map((canvas) => ({
+      id: canvasFileMap.get(`${canvas.channelId}-${canvas.originId}`)!,
+    })),
+  ];
 
-  const canvasFilesToDelete = canvasDiff.delete.map((canvas) => ({
-    id: canvasFileMap.get(`${canvas.channelId}-${canvas.originId}`)!,
-  }));
-  console.log("Canvas files to delete:", canvasFilesToDelete);
+  console.log({
+    canvasFilesToCreate,
+    canvasFilesToUpdate,
+    canvasFilesToDelete,
+    canvasDiff,
+    canvasFileMap,
+  });
 
   // Merge message and canvas operations into a single descriptor
   const descriptor: ConnectorRunDescriptor = {
@@ -220,11 +230,12 @@ export async function runSlackConnector(
     ],
     update: [
       ...update,
-      ...canvasFilesToUpdate.map((canvas) => ({
-        id: canvas.id,
-      })),
+      ...canvasFilesToUpdate.map((canvas) => ({ id: canvas.id })),
     ],
-    delete: [...deleteFiles, ...canvasFilesToDelete],
+    delete: [
+      ...deleteFiles,
+      ...canvasFilesToDelete.map((canvas) => ({ id: canvas.id })),
+    ],
   };
   console.log("Final descriptor:", descriptor);
   await publishConnectorRun(connectorId, descriptor);

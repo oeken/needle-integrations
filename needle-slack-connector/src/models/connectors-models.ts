@@ -176,6 +176,7 @@ export type SlackWorkspace = z.infer<typeof SlackWorkspaceSchema>;
 export type SlackAuth = z.infer<typeof SlackAuthSchema>;
 export type SlackWorkspaceRequest = z.infer<typeof SlackWorkspaceRequestSchema>;
 export type SlackChannelRequest = z.infer<typeof SlackChannelRequestSchema>;
+export type SlackCanvasRequest = z.infer<typeof SlackCanvasRequestSchema>;
 export type SlackMessagesRequest = z.infer<typeof SlackMessagesRequestSchema>;
 export type SlackChannelsResponse = z.infer<typeof SlackChannelsResponseSchema>;
 export type SlackMessagesResponse = z.infer<typeof SlackMessagesResponseSchema>;

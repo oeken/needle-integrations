@@ -8,40 +8,13 @@ import {
   createNeedleFileId,
   type ConnectorRunDescriptor,
 } from "@needle-ai/needle-sdk";
-
-export interface ExistingFile {
-  ndlFileId: string;
-  title: string | null;
-  metadata: FileMetadata;
-}
-
-interface ProcessedFiles {
-  update: ConnectorRunDescriptor["update"];
-  delete: ConnectorRunDescriptor["delete"];
-  filesToUpdate: { id: string; metadata: FileMetadata }[];
-  filesToDelete: { id: string }[];
-}
-
-interface NewFiles {
-  create: ConnectorRunDescriptor["create"];
-  filesToCreate: { id: string; metadata: FileMetadata; title: string }[];
-}
-
-interface DbCanvasFile {
-  ndlFileId: string;
-  metadata: CanvasFileMetadata;
-  updatedAt: Date;
-}
-
-export interface LiveCanvas {
-  originId: string;
-  channelId: string;
-  url: string;
-  title: string;
-  createdAt: number;
-  updatedAt: number;
-  dataType: "canvas";
-}
+import {
+  type ExistingFile,
+  type ProcessedFiles,
+  type NewFiles,
+  type DbCanvasFile,
+  type LiveCanvas,
+} from "../slack/types";
 
 export function generateMonthRanges(
   timezone: string,
