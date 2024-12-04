@@ -1,11 +1,15 @@
 import { TIME_CONSTANTS } from "~/utils/slack";
-import { type FileMetadata, type SlackChannel } from "../db/schema";
+import {
+  type CanvasFileMetadata,
+  type FileMetadata,
+  type SlackChannel,
+} from "../db/schema";
 import {
   createNeedleFileId,
   type ConnectorRunDescriptor,
 } from "@needle-ai/needle-sdk";
 
-interface ExistingFile {
+export interface ExistingFile {
   ndlFileId: string;
   title: string | null;
   metadata: FileMetadata;
@@ -21,6 +25,22 @@ interface ProcessedFiles {
 interface NewFiles {
   create: ConnectorRunDescriptor["create"];
   filesToCreate: { id: string; metadata: FileMetadata; title: string }[];
+}
+
+interface DbCanvasFile {
+  ndlFileId: string;
+  metadata: CanvasFileMetadata;
+  updatedAt: Date;
+}
+
+export interface LiveCanvas {
+  originId: string;
+  channelId: string;
+  url: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  dataType: "canvas";
 }
 
 export function generateMonthRanges(
@@ -188,4 +208,51 @@ export function createNewFiles(
   }
 
   return { create, filesToCreate };
+}
+
+export function computeCanvasDiff(
+  currentFiles: DbCanvasFile[],
+  liveCanvases: LiveCanvas[],
+) {
+  const create: LiveCanvas[] = [];
+  const update: LiveCanvas[] = [];
+  const delete_: CanvasFileMetadata[] = [];
+
+  console.log("Current files:", currentFiles);
+  console.log("Live canvases:", liveCanvases);
+  // Check for new and updated canvases
+  for (const liveCanvas of liveCanvases) {
+    const currentCanvas = currentFiles.find(
+      (f) =>
+        f.metadata.channelId === liveCanvas.channelId &&
+        f.metadata.originId === liveCanvas.originId,
+    );
+
+    if (!currentCanvas) {
+      create.push(liveCanvas);
+    } else {
+      if (liveCanvas.updatedAt > currentCanvas.updatedAt.getTime() / 1000) {
+        update.push(liveCanvas);
+      }
+    }
+  }
+
+  // Check for deleted canvases
+  for (const currentFile of currentFiles) {
+    const exists = liveCanvases.some(
+      (lc) =>
+        lc.channelId === currentFile.metadata.channelId &&
+        lc.originId === currentFile.metadata.originId,
+    );
+
+    if (!exists) {
+      delete_.push(currentFile.metadata);
+    }
+  }
+
+  console.log("Create:", create);
+  console.log("Update:", update);
+  console.log("Delete:", delete_);
+
+  return { create, update, delete: delete_ };
 }

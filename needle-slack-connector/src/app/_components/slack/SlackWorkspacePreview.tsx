@@ -97,8 +97,6 @@ export function SlackWorkspacePreview({
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{message.user}</span>
-                        <span className="text-sm text-zinc-500">in</span>
                         <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                           #{message.channelName}
                         </span>

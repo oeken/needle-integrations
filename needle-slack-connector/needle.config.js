@@ -1,7 +1,7 @@
 export default {
-  appId: "mpn2atwxjlsj",
+  appId: "ct7pipqrpum9",
   appName: "needle-zendesk",
-  appSlug: "dev-mpn2atwxjlsj",
-  connectorType: "ext_dev_mpn2atwxjlsj",
+  appSlug: "dev-ct7pipqrpum9",
+  connectorType: "ext_dev_ct7pipqrpum9",
   connectorLogo: "",
 };

@@ -24,14 +24,16 @@ const SLACK_USER_SCOPES = [
   "channels:read",
   "groups:history",
   "groups:read",
-  "team:read", // Add this for workspace/team info
-  "users:read", // Add this for user info
-  "users:read.email", // Add this for user email
-  "users.profile:read", // Add this for user profile
-  "im:history", // Add this for direct messages
-  "im:read", // Add this for direct message channels
-  "mpim:history", // Add this for multi-person instant messages
-  "mpim:read", // Add this for multi-person message channels
+  "team:read",
+  "users:read",
+  "users:read.email",
+  "users.profile:read",
+  "im:history",
+  "im:read",
+  "mpim:history",
+  "mpim:read",
+  "remote_files:read",
+  "files:read",
 ] as const;
 
 export function buildSlackTokenUrl(): string {

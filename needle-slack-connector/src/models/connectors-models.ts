@@ -6,7 +6,25 @@ export const CreateConnectorRequestSchema = z.object({
   credentials: z.string(),
   cronJob: z.string(),
   cronJobTimezone: z.string(),
-  channels: z.array(z.object({ id: z.string(), name: z.string() })),
+  channels: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      canvases: z
+        .array(
+          z.object({
+            channelId: z.string(),
+            originId: z.string(),
+            url: z.string(),
+            title: z.string(),
+            createdAt: z.number(),
+            updatedAt: z.number(),
+            dataType: z.string(),
+          }),
+        )
+        .optional(), // Make canvases optional if not always present
+    }),
+  ),
   timezone: z.string(),
 });
 
@@ -115,6 +133,10 @@ export const SlackWorkspaceRequestSchema = SlackAuthSchema.extend({
 
 export const SlackChannelRequestSchema = SlackAuthSchema.extend({
   // workspaceId: z.string(),
+});
+
+export const SlackCanvasRequestSchema = SlackAuthSchema.extend({
+  channelId: z.string(),
 });
 
 export const SlackMessagesRequestSchema = SlackAuthSchema.extend({

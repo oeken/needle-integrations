@@ -2,6 +2,7 @@ import { db } from "../db";
 import {
   type FileInsert,
   type FileMetadata,
+  type CanvasFileMetadata,
   filesTable,
   slackConnectorsTable,
 } from "../db/schema";
@@ -31,8 +32,16 @@ export async function updateLastSynced(connectorId: string) {
 
 export async function handleDatabaseUpdates(
   connectorId: string,
-  createFiles: { id: string; metadata: FileMetadata; title: string }[],
-  updateFiles: { id: string; metadata: FileMetadata }[],
+  createFiles: {
+    id: string;
+    metadata: FileMetadata | CanvasFileMetadata;
+    title: string;
+  }[],
+  updateFiles: {
+    id: string;
+    metadata: FileMetadata | CanvasFileMetadata;
+    title?: string;
+  }[],
   deleteFiles: { id: string }[],
 ) {
   // Handle creates
@@ -40,10 +49,18 @@ export async function handleDatabaseUpdates(
     const filesToInsert: FileInsert[] = createFiles.map((file) => ({
       ndlConnectorId: connectorId,
       ndlFileId: file.id,
-      metadata: file.metadata,
+      metadata: {
+        ...file.metadata,
+        // Ensure canvas metadata includes all required fields
+        ...(file.metadata.dataType === "canvas"
+          ? {
+              title: file.title,
+            }
+          : {}),
+      },
       createdAt: new Date(),
       updatedAt: new Date(),
-      title: file.title, // Now this will work because we're passing title in createFiles
+      title: file.title,
     }));
 
     await db.insert(filesTable).values(filesToInsert);
@@ -54,8 +71,17 @@ export async function handleDatabaseUpdates(
     await db
       .update(filesTable)
       .set({
-        metadata: file.metadata,
+        metadata: {
+          ...file.metadata,
+          // Ensure canvas metadata includes all required fields
+          ...(file.metadata.dataType === "canvas"
+            ? {
+                title: file.title,
+              }
+            : {}),
+        },
         updatedAt: new Date(),
+        ...(file.title ? { title: file.title } : {}),
       })
       .where(
         and(

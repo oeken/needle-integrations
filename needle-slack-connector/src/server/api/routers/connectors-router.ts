@@ -8,6 +8,7 @@ import {
   SlackMessagesRequestSchema,
   type SlackMessagesResponse,
   SlackUserTimezoneSchema,
+  SlackCanvasRequestSchema,
 } from "~/models/connectors-models";
 import { createTRPCRouter, procedure } from "~/server/api/trpc";
 import {
@@ -68,5 +69,12 @@ export const connectorsRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const slackService = createSlackService(input.accessToken);
       return await slackService.getUserTimezone(input.userId);
+    }),
+
+  getCanvases: procedure
+    .input(SlackCanvasRequestSchema)
+    .query(async ({ input }) => {
+      const slackService = createSlackService(input.accessToken);
+      return await slackService.getCanvases(input.channelId);
     }),
 });

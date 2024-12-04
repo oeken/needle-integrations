@@ -15,3 +15,21 @@ export interface SlackOAuthResponse {
   enterprise?: null;
   is_enterprise_install?: boolean;
 }
+
+export interface DbFile {
+  originId: number;
+  updatedAt: string; // or Date, depending on your data
+  // Add other properties as needed
+}
+
+export interface SlackCanvas {
+  originId: number;
+  updatedAt: string; // or Date, depending on your data
+  // Add other properties as needed
+}
+
+export interface DiffResult {
+  create: SlackCanvas[];
+  update: SlackCanvas[];
+  delete: DbFile[];
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import {
   type SlackMessage,
   type SlackWorkspace,
@@ -62,19 +62,65 @@ export function SlackResourcesProvider({
     },
   );
 
+  console.log({ messages });
+
   const mappedMessages = messages?.flatMap(
-    (channelMessages) =>
+    (channelMessages, index) =>
       channelMessages.messages.map((msg) => ({
         ...msg,
+        channelName: selectedChannels[index]?.name,
+        channelId: selectedChannels[index]?.id,
       })) as SlackMessage[],
   );
+
+  const { data: canvases } = api.connectors.getCanvases.useQuery(
+    selectedChannels.length > 0
+      ? {
+          accessToken: credentials,
+          channelId: selectedChannels[selectedChannels.length - 1]?.id ?? "",
+        }
+      : skipToken,
+  );
+
+  console.log({ canvases });
+
+  useEffect(() => {
+    if (canvases && selectedChannels.length > 0) {
+      const lastSelectedChannel = selectedChannels[selectedChannels.length - 1];
+
+      if (canvases && selectedChannels.length > 0 && lastSelectedChannel) {
+        const updatedChannel: SlackChannel = {
+          id: lastSelectedChannel.id,
+          name: lastSelectedChannel.name,
+          canvases:
+            canvases.files?.map((file) => ({
+              channelId: lastSelectedChannel.id,
+              url: file.url_private,
+              title: file.title,
+              originId: file.id,
+              createdAt: file.created,
+              updatedAt: file.updated,
+              dataType: "canvas",
+            })) ?? [],
+        };
+
+        setSelectedChannels((prev) => [...prev.slice(0, -1), updatedChannel]);
+      }
+    }
+  }, [canvases]);
+
+  const handleChannelSelect = (channels: SlackChannel[]) => {
+    setSelectedChannels(channels);
+  };
+
+  console.log({ selectedChannels });
 
   return (
     <SlackResourcesContext.Provider
       value={{
         workspace,
         selectedChannels,
-        setSelectedChannels,
+        setSelectedChannels: handleChannelSelect,
         channels: channels?.channels,
         messages: mappedMessages,
         userTimezone,

@@ -59,6 +59,7 @@ export function CreateConnectorForm({
       timezone: userTimezone?.timezone ?? "UTC",
     });
   };
+
   const isFormValid =
     form.watch("name") &&
     form.watch("collectionId") &&

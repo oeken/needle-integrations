@@ -16,14 +16,24 @@ export interface FileMetadata {
   dataType: string;
 }
 
+export interface CanvasFileMetadata {
+  channelId: string;
+  originId: string;
+  url: string;
+  title: string;
+  dataType: string;
+}
+
 export const filesTable = createTable("files", {
   id: serial("id").primaryKey(),
   ndlConnectorId: varchar("ndl_connector_id", { length: 256 }).notNull(),
   ndlFileId: varchar("ndl_file_id", { length: 256 }).notNull(),
   title: varchar("title", { length: 512 }),
-  metadata: jsonb("metadata").notNull().$type<FileMetadata>(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  metadata: jsonb("metadata")
+    .notNull()
+    .$type<FileMetadata | CanvasFileMetadata>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const slackConnectorsTable = createTable("slack_connectors", {
@@ -39,17 +49,9 @@ export type FileSelect = typeof filesTable.$inferSelect;
 export type SlackConnectorInsert = typeof slackConnectorsTable.$inferInsert;
 export type SlackConnectorSelect = typeof slackConnectorsTable.$inferSelect;
 
-// Define the valid file types
-export const FileTypes = {
-  TICKET: "ticket",
-  ARTICLE: "article",
-  COMMENTS: "comments",
-} as const;
-
-export type FileType = (typeof FileTypes)[keyof typeof FileTypes];
-
 // Slack channel types
 export type SlackChannel = {
   id: string;
   name: string;
+  canvases?: CanvasFileMetadata[];
 };
