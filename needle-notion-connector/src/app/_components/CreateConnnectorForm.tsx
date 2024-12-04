@@ -175,12 +175,14 @@ export function CreateConnectorForm({
         </div>
       </div>
 
-      <button
-        type="submit"
+      <Button
+        isLoading={isPending}
+        disabled={!isFormValid}
         className="ml-auto mt-2 rounded bg-orange-600 px-3 py-1 text-sm font-semibold hover:bg-orange-500"
+        type="submit"
       >
         Create Connector
-      </button>
+      </Button>
     </form>
   );
 }
