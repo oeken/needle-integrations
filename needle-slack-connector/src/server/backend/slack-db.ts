@@ -5,6 +5,7 @@ import {
   type CanvasFileMetadata,
   filesTable,
   slackConnectorsTable,
+  type SlackChannel,
 } from "../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 
@@ -103,4 +104,56 @@ export async function handleDatabaseUpdates(
         ),
       );
   }
+}
+
+export async function updateChannelInfo(
+  connectorId: string,
+  channelInfo: SlackChannel[],
+) {
+  await db
+    .update(slackConnectorsTable)
+    .set({ channelInfo })
+    .where(eq(slackConnectorsTable.connectorId, connectorId));
+}
+
+export async function createSlackConnectorRecord(
+  connectorId: string,
+  channelInfo: SlackChannel[],
+  timezone: string,
+) {
+  await db.insert(slackConnectorsTable).values({
+    connectorId,
+    channelInfo,
+    timezone: timezone ?? "UTC",
+    lastSyncedAt: new Date(),
+  });
+}
+
+export async function deleteSlackConnectorRecords(connectorId: string) {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(filesTable)
+      .where(eq(filesTable.ndlConnectorId, connectorId));
+    await tx
+      .delete(slackConnectorsTable)
+      .where(eq(slackConnectorsTable.connectorId, connectorId));
+  });
+}
+
+export async function getSlackConnectorWithFiles(connectorId: string) {
+  const [slackMetadata] = await db
+    .select()
+    .from(slackConnectorsTable)
+    .where(eq(slackConnectorsTable.connectorId, connectorId));
+
+  const files = await db
+    .select()
+    .from(filesTable)
+    .where(eq(filesTable.ndlConnectorId, connectorId));
+
+  return {
+    files,
+    channelInfo: slackMetadata?.channelInfo,
+    lastSyncedAt: slackMetadata?.lastSyncedAt,
+  };
 }
