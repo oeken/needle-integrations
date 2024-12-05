@@ -18,6 +18,7 @@ type SlackResourcesContextType = {
   messages: SlackMessage[] | undefined;
   workspace: SlackWorkspace | undefined;
   userTimezone: TimezoneInfo | undefined;
+  isLoading: boolean;
 };
 
 const SlackResourcesContext = createContext<SlackResourcesContextType | null>(
@@ -37,30 +38,34 @@ export function SlackResourcesProvider({
 }: SlackResourcesProviderProps) {
   const [selectedChannels, setSelectedChannels] = useState<SlackChannel[]>([]);
 
-  const { data: workspace } = api.connectors.getWorkspaces.useQuery({
-    accessToken: credentials,
-  });
+  const { data: workspace, isLoading: isWorkspaceLoading } =
+    api.connectors.getWorkspaces.useQuery({
+      accessToken: credentials,
+    });
 
-  const { data: channels } = api.connectors.getChannels.useQuery({
-    accessToken: credentials,
-  });
+  const { data: channels, isLoading: isChannelsLoading } =
+    api.connectors.getChannels.useQuery({
+      accessToken: credentials,
+    });
 
-  const { data: userTimezone } = api.connectors.getUserTimezone.useQuery({
-    accessToken: credentials,
-    userId,
-  }) as { data: TimezoneInfo | undefined };
+  const { data: userTimezone, isLoading: isTimezoneLoading } =
+    api.connectors.getUserTimezone.useQuery({
+      accessToken: credentials,
+      userId,
+    }) as { data: TimezoneInfo | undefined; isLoading: boolean };
 
-  const { data: messages } = api.connectors.getMessages.useQuery(
-    selectedChannels.length > 0
-      ? {
-          accessToken: credentials,
-          channelIds: selectedChannels.map((channel) => channel.id),
-        }
-      : skipToken,
-    {
-      enabled: selectedChannels.length > 0,
-    },
-  );
+  const { data: messages, isLoading: isMessagesLoading } =
+    api.connectors.getMessages.useQuery(
+      selectedChannels.length > 0
+        ? {
+            accessToken: credentials,
+            channelIds: selectedChannels.map((channel) => channel.id),
+          }
+        : skipToken,
+      {
+        enabled: selectedChannels.length > 0,
+      },
+    );
 
   console.log({ messages });
 
@@ -81,8 +86,6 @@ export function SlackResourcesProvider({
         }
       : skipToken,
   );
-
-  console.log({ canvases });
 
   useEffect(() => {
     if (canvases && selectedChannels.length > 0) {
@@ -113,7 +116,7 @@ export function SlackResourcesProvider({
     setSelectedChannels(channels);
   };
 
-  console.log({ selectedChannels });
+  const isLoading = isChannelsLoading;
 
   return (
     <SlackResourcesContext.Provider
@@ -124,6 +127,7 @@ export function SlackResourcesProvider({
         channels: channels?.channels,
         messages: mappedMessages,
         userTimezone,
+        isLoading,
       }}
     >
       {children}
