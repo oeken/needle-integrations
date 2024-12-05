@@ -293,9 +293,14 @@ export async function deleteSlackConnector(
 ) {
   const connector = await deleteConnector(connectorId, session.id);
 
-  await db
-    .delete(slackConnectorsTable)
-    .where(eq(slackConnectorsTable.connectorId, connectorId));
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(filesTable)
+      .where(eq(filesTable.ndlConnectorId, connectorId));
+    await tx
+      .delete(slackConnectorsTable)
+      .where(eq(slackConnectorsTable.connectorId, connectorId));
+  });
 
   return connector;
 }
