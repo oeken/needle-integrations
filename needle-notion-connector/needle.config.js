@@ -1,7 +1,7 @@
 export default {
-  appId: "tg2ugnksuita",
-  appName: "Notion",
-  appSlug: "dev-tg2ugnksuita",
-  connectorType: "ext_dev_tg2ugnksuita",
+  appId: "pk1pzb51pdz9",
+  appName: "notion",
+  appSlug: "dev-pk1pzb51pdz9",
+  connectorType: "ext_dev_pk1pzb51pdz9",
   connectorLogo: "",
 };
