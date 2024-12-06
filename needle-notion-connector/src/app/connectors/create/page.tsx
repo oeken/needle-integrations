@@ -22,7 +22,9 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
     redirect(env.NOTION_OAUTH_URL);
   }
 
-  const token = await fetchAccessToken(searchParams.code);
+  const token = await fetchAccessToken(searchParams.code).catch(() =>
+    redirect("/error?message=unauthorized"),
+  );
   if (!token) {
     return redirect("/error?message=missing-access-token");
   }
