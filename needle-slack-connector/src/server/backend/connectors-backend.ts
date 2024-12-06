@@ -84,10 +84,7 @@ export async function runSlackConnector(
   if (!connectorDetails)
     throw new Error(`No Slack connector found for ID: ${connectorId}`);
 
-  console.log("Connector details:", connectorDetails);
-
   const currentFiles = await getCurrentFiles(connectorId);
-  console.log("Current files:", currentFiles);
 
   // Get current channel list from Slack to verify channel existence
   const slackService = createSlackService(connector.credentials ?? "");
@@ -267,7 +264,7 @@ export async function runSlackConnector(
       ...canvasFilesToDelete.map((canvas) => ({ id: canvas.id })),
     ],
   };
-  console.log("Final descriptor:", descriptor);
+
   await publishConnectorRun(connectorId, descriptor);
 
   await handleDatabaseUpdates(

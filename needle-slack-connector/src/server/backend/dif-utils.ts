@@ -191,8 +191,6 @@ export function computeCanvasDiff(
   const update: LiveCanvas[] = [];
   const delete_: CanvasFileMetadata[] = [];
 
-  console.log("Current files:", currentFiles);
-  console.log("Live canvases:", liveCanvases);
   // Check for new and updated canvases
   for (const liveCanvas of liveCanvases) {
     const currentCanvas = currentFiles.find(
@@ -222,10 +220,6 @@ export function computeCanvasDiff(
       delete_.push(currentFile.metadata);
     }
   }
-
-  console.log("Create:", create);
-  console.log("Update:", update);
-  console.log("Delete:", delete_);
 
   return { create, update, delete: delete_ };
 }

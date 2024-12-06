@@ -85,14 +85,20 @@ export function SlackResourceInfo() {
       title: "Channels",
       icon: <InfoCircleIcon />,
       description:
-        "Public and private channels from your Slack workspace will be synchronized. Channel history and new messages will be continuously tracked and updated in Needle.",
+        "Public and private channels from your Slack workspace will be synchronized. All canvases attached to these channels will be automatically synced and updated in Needle.",
     },
     {
-      title: "Note",
+      title: "Canvases",
+      icon: <InfoCircleIcon />,
+      description:
+        "New canvases can be attached to the channels after the connector is established. The sync will happen automatically as canvases are added or modified.",
+    },
+    {
+      title: "Warning",
       icon: <WarningTriangleIcon />,
       variant: "warning" as const,
       description:
-        "If tracked channels are archived or deleted from Slack, the connector will be broken. To prevent the connector from breaking, please edit or delete your connector before removing resources from Slack.",
+        "If tracked channels are archived or deleted from Slack, all associated canvases and messages will be removed from Needle. To prevent data loss, please edit or delete your connector before removing resources from Slack.",
     },
   ];
 

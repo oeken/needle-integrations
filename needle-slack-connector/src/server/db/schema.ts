@@ -53,5 +53,21 @@ export type SlackConnectorSelect = typeof slackConnectorsTable.$inferSelect;
 export type SlackChannel = {
   id: string;
   name: string;
-  canvases?: CanvasFileMetadata[];
+  properties?: {
+    tabs?: Array<{
+      type: string;
+      data?: {
+        file_id?: string;
+      };
+    }>;
+  };
+  canvases?: {
+    channelId: string;
+    url: string;
+    title: string;
+    originId: string;
+    createdAt: number;
+    updatedAt: number;
+    dataType: string;
+  }[];
 };

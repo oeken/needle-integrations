@@ -8,6 +8,7 @@ import { Button } from "./atoms/Button";
 import { Select } from "./atoms/Select";
 import { Input } from "./atoms/Input";
 import { Controller, useForm } from "react-hook-form";
+import { HourItems, MinuteItems, TimezoneItems } from "~/utils/date-items";
 
 interface FormValues {
   name: string;
@@ -34,7 +35,6 @@ export function CreateConnectorForm({
       hour: 0,
       minute: 0,
       timezone: "UTC",
-      // timezone: timezone?.timezone ?? "UTC",
     },
   });
 
@@ -114,7 +114,7 @@ export function CreateConnectorForm({
         />
       </div>
 
-      {/* <div className="mb-4">
+      <div className="mb-4">
         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
           Schedule
         </label>
@@ -165,7 +165,7 @@ export function CreateConnectorForm({
             )}
           />
         </div>
-      </div> */}
+      </div>
       <Button
         isLoading={isPending}
         disabled={!isFormValid}

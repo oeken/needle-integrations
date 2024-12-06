@@ -67,8 +67,6 @@ export function SlackResourcesProvider({
       },
     );
 
-  console.log({ messages });
-
   const mappedMessages = messages?.flatMap(
     (channelMessages, index) =>
       channelMessages.messages.map((msg) => ({
