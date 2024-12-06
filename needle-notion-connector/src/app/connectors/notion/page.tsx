@@ -7,24 +7,27 @@ import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { redirect } from "next/navigation";
 import { env } from "~/env";
-import { type NotionToken } from "~/models/notion-models";
 import { Client as NotionClient } from "@notionhq/client";
 import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
 import { NotionPageHeader } from "~/app/_components/NotionPageHeader";
+import { fetchAccessToken } from "~/utils/notion-utils";
 
-type NotionPageProps = { searchParams: { token?: string } };
+type NotionPageProps = { searchParams: { code?: string; state?: string } };
 
 export default async function NotionPage({ searchParams }: NotionPageProps) {
   const { user, session } = await getSession();
   const collections = await listCollections(session.id);
 
-  if (!searchParams.token) {
+  if (!searchParams.code) {
     redirect(env.NOTION_OAUTH_URL);
   }
 
-  const token = JSON.parse(searchParams.token) as NotionToken;
-  const notion = new NotionClient({ auth: token.access_token });
+  const token = await fetchAccessToken(searchParams.code);
+  if (!token) {
+    return redirect("/error?message=missing-access-token");
+  }
 
+  const notion = new NotionClient({ auth: token.access_token });
   const searchResponse = await notion.search({});
 
   return (
