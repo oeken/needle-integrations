@@ -22,8 +22,8 @@ export default async function ConnectorPage({
 
   const previewData: NotionPreviewData[] = connector.files.map((f) => ({
     id: f.notionPageId,
-    object: "page",
-    title: "",
+    object: f.notionObject,
+    title: f.notionPageTitle,
     url: f.notionUrl,
   }));
 

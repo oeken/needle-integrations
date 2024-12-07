@@ -41,17 +41,18 @@ export async function createNotionConnector(
     ndlFileId: createNeedleFileId(),
     notionUrl: p.url,
     notionPageId: p.id,
+    notionPageTitle: p.title,
+    notionObject: p.object,
     notionLastEditedTime: p.last_edited_time,
   }));
   await db.insert(notionPagesTable).values(pagesToInsert);
 
-  const connectorsToInsert = request.notionPages.map((p) => ({
+  const connectorsToInsert = {
     ndlConnectorId: connector.id,
     notionWorkspaceId: request.notionToken.workspace_id,
     notionWorkspaceName: request.notionToken.workspace_name,
     notionUserId: request.notionToken.owner.user.id,
-    notionPageId: p.id,
-  }));
+  };
   await db.insert(notionConnectorsTable).values(connectorsToInsert);
 
   await runNotionConnector({ connectorId: connector.id }, session);

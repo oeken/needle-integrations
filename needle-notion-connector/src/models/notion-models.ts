@@ -34,6 +34,8 @@ export type NotionError = z.infer<typeof NotionErrorSchema>;
 
 export const NotionPageSchema = z.object({
   id: z.string().uuid(),
+  title: z.string(),
+  object: z.enum(["database", "page"]),
   last_edited_time: z.string().datetime(),
   url: z.string().url(),
 });

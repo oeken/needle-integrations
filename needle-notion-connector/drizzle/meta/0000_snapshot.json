@@ -1,5 +1,5 @@
 {
-  "id": "cb4b154f-a160-4d77-b634-d99947e10480",
+  "id": "f76a034b-3493-4990-9fd0-bbd3ecac95bf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -29,12 +29,6 @@
         "notion_workspace_name": {
           "name": "notion_workspace_name",
           "type": "varchar(256)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "notion_page_id": {
-          "name": "notion_page_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -84,11 +78,24 @@
           "name": "ndl_file_id",
           "type": "varchar(256)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "notion_page_id": {
           "name": "notion_page_id",
           "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_page_title": {
+          "name": "notion_page_title",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "notion_object": {
+          "name": "notion_object",
+          "type": "notion_object",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -125,7 +132,16 @@
       "uniqueConstraints": {}
     }
   },
-  "enums": {},
+  "enums": {
+    "public.notion_object": {
+      "name": "notion_object",
+      "schema": "public",
+      "values": [
+        "database",
+        "page"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "_meta": {

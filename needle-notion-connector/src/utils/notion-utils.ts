@@ -1,6 +1,5 @@
 import { isFullDatabase } from "@notionhq/client";
 import type {
-  DatabaseObjectResponse,
   PageObjectResponse,
   SearchResponse,
 } from "@notionhq/client/build/src/api-endpoints";
