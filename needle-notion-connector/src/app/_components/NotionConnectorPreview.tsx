@@ -1,41 +1,39 @@
 "use client";
 
-import type {
-  DatabaseObjectResponse,
-  PageObjectResponse,
-  SearchResponse,
-} from "@notionhq/client/build/src/api-endpoints";
 import { type ChangeEvent, type MouseEventHandler, useState } from "react";
 
+export interface NotionPreviewData {
+  id: string;
+  object: "database" | "page";
+  url: string;
+  title: string;
+}
+
 export function NotionConnectorPreview({
-  searchResponse,
+  pages,
 }: {
-  searchResponse: SearchResponse;
+  pages: NotionPreviewData[];
 }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const totalLength = searchResponse.results.length;
+  const totalLength = pages.length;
   const PAGE_SIZE = 10;
   const totalPages = Math.round(totalLength / PAGE_SIZE);
 
-  const filteredPages = searchResponse.results
-    .filter((r) => {
+  const filteredPages = pages
+    .filter((page) => {
       if (search === "") {
         return true;
       }
 
-      const title = getPageTitle(r);
-      if (title?.toLowerCase().includes(search.toLowerCase())) {
+      if (page.title?.toLowerCase().includes(search.toLowerCase())) {
         return true;
       }
 
       return false;
     })
-    .slice(PAGE_SIZE * (page - 1), PAGE_SIZE * page) as (
-    | PageObjectResponse
-    | DatabaseObjectResponse
-  )[];
+    .slice(PAGE_SIZE * (page - 1), PAGE_SIZE * page);
 
   return (
     <div className="flex flex-col gap-2">
@@ -50,7 +48,7 @@ export function NotionConnectorPreview({
 
         <span className="m-2 text-sm text-zinc-500">
           Showing {(page - 1) * PAGE_SIZE + 1}-{page * PAGE_SIZE} of{" "}
-          {searchResponse.results.length}
+          {pages.length}
         </span>
 
         <PaginationButton
@@ -75,17 +73,17 @@ export function NotionConnectorPreview({
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {filteredPages.map((r) => (
+            {filteredPages.map((page) => (
               <tr
-                key={r.id}
+                key={page.id}
                 className="text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
               >
                 <td className="p-2">
-                  <a href={r.url} target="_blank">
-                    {getPageTitle(r)} ↗
+                  <a href={page.url} target="_blank">
+                    {page.title} ↗
                   </a>
                 </td>
-                <td className="p-2 capitalize">{r.object}</td>
+                <td className="p-2 capitalize">{page.object}</td>
               </tr>
             ))}
           </tbody>
@@ -162,13 +160,4 @@ function PaginationButton({
       </svg>
     </button>
   );
-}
-
-function getPageTitle(result: SearchResponse["results"][number]) {
-  if (result.object === "database") {
-    return (result as DatabaseObjectResponse).title[0]?.plain_text;
-  }
-  const properties = (result as PageObjectResponse).properties;
-  const title = Object.values(properties).find((p) => p.type === "title");
-  return title?.title[0]?.plain_text ?? "(unnamed page)";
 }

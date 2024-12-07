@@ -7,6 +7,10 @@ import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { DeleteConnectorButton } from "~/app/_components/DeleteConnectorButton";
 import { RunConnectorButton } from "~/app/_components/RunConnectorButton";
+import {
+  NotionConnectorPreview,
+  type NotionPreviewData,
+} from "~/app/_components/NotionConnectorPreview";
 
 type ConnectorPageProps = { params: { connectorId: string } };
 
@@ -15,6 +19,13 @@ export default async function ConnectorPage({
 }: ConnectorPageProps) {
   const { user } = await getSession();
   const connector = await api.connectors.get({ connectorId });
+
+  const previewData: NotionPreviewData[] = connector.files.map((f) => ({
+    id: f.notionPageId,
+    object: "page",
+    title: "",
+    url: f.notionUrl,
+  }));
 
   return (
     <>
@@ -49,18 +60,8 @@ export default async function ConnectorPage({
             {connector.cron_job}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2 px-2">
-            <span className="text-sm font-bold">Files: </span>
-            {connector.files.map((file) => (
-              <a
-                className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
-                key={file.id}
-                href={file.notionUrl}
-                target="_blank"
-              >
-                ↗ {file.notionUrl}
-              </a>
-            ))}
+          <div className="mb-4 w-full">
+            <NotionConnectorPreview pages={previewData} />
           </div>
 
           <DeleteConnectorButton connectorId={connectorId} />

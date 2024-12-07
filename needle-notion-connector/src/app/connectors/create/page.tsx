@@ -7,7 +7,7 @@ import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { redirect } from "next/navigation";
 import { env } from "~/env";
-import { Client as NotionClient } from "@notionhq/client";
+import { isFullPageOrDatabase, Client as NotionClient } from "@notionhq/client";
 import { CreateConnectorForm } from "~/app/_components/CreateConnnectorForm";
 import { NotionPageHeader } from "~/app/_components/NotionPageHeader";
 import { fetchAccessToken } from "~/utils/notion-utils";
@@ -31,6 +31,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
 
   const notion = new NotionClient({ auth: token.access_token });
   const searchResponse = await notion.search({});
+  const pages = searchResponse.results.filter(isFullPageOrDatabase);
 
   return (
     <>
@@ -52,7 +53,7 @@ export default async function NotionPage({ searchParams }: NotionPageProps) {
 
           <CreateConnectorForm
             collections={collections}
-            notionSearchResponse={searchResponse}
+            notionPages={pages}
             notionToken={token}
           />
         </div>

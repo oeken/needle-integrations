@@ -1,3 +1,9 @@
+import { isFullDatabase } from "@notionhq/client";
+import type {
+  DatabaseObjectResponse,
+  PageObjectResponse,
+  SearchResponse,
+} from "@notionhq/client/build/src/api-endpoints";
 import { env } from "~/env";
 import type { NotionError, NotionToken } from "~/models/notion-models";
 
@@ -27,4 +33,15 @@ export async function fetchAccessToken(code: string): Promise<NotionToken> {
   }
 
   return json as NotionToken;
+}
+
+export function getPageTitle(
+  result: SearchResponse["results"][number],
+): string {
+  if (isFullDatabase(result)) {
+    return result.title[0]?.plain_text ?? "(unnamed database)";
+  }
+  const properties = (result as PageObjectResponse).properties;
+  const title = Object.values(properties).find((p) => p.type === "title");
+  return title?.title[0]?.plain_text ?? "(unnamed page)";
 }

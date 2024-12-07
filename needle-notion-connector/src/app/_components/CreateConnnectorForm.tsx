@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import type {
   DatabaseObjectResponse,
   PageObjectResponse,
-  SearchResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import { NotionConnectorPreview } from "./NotionConnectorPreview";
+import {
+  NotionConnectorPreview,
+  type NotionPreviewData,
+} from "./NotionConnectorPreview";
 import { type NotionToken } from "~/models/notion-models";
 import { Controller, useForm } from "react-hook-form";
 import { Button } from "./atoms/Button";
 import { Input } from "./atoms/Input";
 import { Select } from "./atoms/Select";
 import { HourItems, MinuteItems, TimezoneItems } from "~/utils/date-items";
+import { getPageTitle } from "~/utils/notion-utils";
 
 interface FormValues {
   name: string;
@@ -26,11 +29,11 @@ interface FormValues {
 
 export function CreateConnectorForm({
   collections,
-  notionSearchResponse,
+  notionPages,
   notionToken,
 }: {
   collections: Collection[];
-  notionSearchResponse: SearchResponse;
+  notionPages: (DatabaseObjectResponse | PageObjectResponse)[];
   notionToken: NotionToken;
 }) {
   const router = useRouter();
@@ -57,17 +60,12 @@ export function CreateConnectorForm({
     // Convert hour and minute to cron format
     const cronJob = `${data.minute} ${data.hour} * * *`;
 
-    const results = notionSearchResponse.results as (
-      | PageObjectResponse
-      | DatabaseObjectResponse
-    )[];
-
     createNotionConnector({
       ...data,
       cronJob,
       cronJobTimezone: data.timezone,
       notionToken: notionToken,
-      notionPages: results.map((p) => ({
+      notionPages: notionPages.map((p) => ({
         id: p.id,
         last_edited_time: p.last_edited_time,
         url: p.url,
@@ -82,12 +80,19 @@ export function CreateConnectorForm({
     form.watch("minute") !== undefined &&
     form.watch("timezone") !== undefined;
 
+  const previewData: NotionPreviewData[] = notionPages.map((r) => ({
+    id: r.id,
+    object: r.object,
+    title: getPageTitle(r),
+    url: r.url ?? "",
+  }));
+
   return (
     <form
       onSubmit={form.handleSubmit(onSubmit)}
       className="flex max-w-2xl flex-col gap-6"
     >
-      <NotionConnectorPreview searchResponse={notionSearchResponse} />
+      <NotionConnectorPreview pages={previewData} />
 
       <div className="flex flex-col">
         <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
