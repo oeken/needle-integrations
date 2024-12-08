@@ -11,6 +11,7 @@ import {
   NotionConnectorPreview,
   type NotionPreviewData,
 } from "~/app/_components/NotionConnectorPreview";
+import { Input } from "~/app/_components/atoms/Input";
 
 type ConnectorPageProps = { params: { connectorId: string } };
 
@@ -58,6 +59,17 @@ export default async function ConnectorPage({
             {connector.timezone}
             {", "}
             {connector.cron_job}
+          </div>
+
+          <div className="my-4 flex w-full flex-col">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Workspaces
+            </label>
+            <Input
+              value={connector.workspaces.map((w) => w.name).join(", ")}
+              type="text"
+              readOnly
+            />
           </div>
 
           <div className="mb-4 w-full">

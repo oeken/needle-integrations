@@ -75,7 +75,20 @@ export async function getNotionConnector(
     .from(notionPagesTable)
     .where(eq(notionPagesTable.ndlConnectorId, connectorId));
 
-  return { ...connector, files };
+  const workspaces = await db
+    .select()
+    .from(notionConnectorsTable)
+    .where(eq(notionConnectorsTable.ndlConnectorId, connectorId));
+
+  return {
+    ...connector,
+    files,
+    workspaces: workspaces.map((w) => ({
+      id: w.id,
+      name: w.notionWorkspaceName,
+      userId: w.notionUserId,
+    })),
+  };
 }
 
 export async function deleteNotionConnector(
