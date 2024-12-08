@@ -63,16 +63,9 @@ export function CreateConnectorForm({
 
     createNotionConnector({
       ...data,
+      notionToken,
       cronJob,
       cronJobTimezone: data.timezone,
-      notionToken: notionToken,
-      notionPages: notionPages.map((p) => ({
-        id: p.id,
-        object: p.object,
-        title: getPageTitle(p),
-        last_edited_time: p.last_edited_time,
-        url: p.url,
-      })),
     });
   };
 

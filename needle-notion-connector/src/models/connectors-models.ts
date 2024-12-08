@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NotionPageSchema, NotionTokenSchema } from "./notion-models";
+import { NotionTokenSchema } from "./notion-models";
 
 export const CreateConnectorRequestSchema = z.object({
   collectionIds: z.array(z.string()),
@@ -7,7 +7,6 @@ export const CreateConnectorRequestSchema = z.object({
   cronJob: z.string(),
   cronJobTimezone: z.string(),
   notionToken: NotionTokenSchema,
-  notionPages: z.array(NotionPageSchema),
 });
 
 export type CreateConnectorRequest = z.infer<
