@@ -30,7 +30,7 @@ export async function createNotionConnector(
       name: request.name,
       cronJob: request.cronJob,
       cronJobTimezone: request.cronJobTimezone,
-      collectionIds: [request.collectionId],
+      collectionIds: request.collectionIds,
       credentials: request.notionToken.access_token,
     },
     session.id,

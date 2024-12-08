@@ -18,10 +18,11 @@ import { Input } from "./atoms/Input";
 import { Select } from "./atoms/Select";
 import { HourItems, MinuteItems, TimezoneItems } from "~/utils/date-items";
 import { getPageTitle } from "~/utils/notion-utils";
+import { MultiSelect } from "./atoms/MultiSelect";
 
 interface FormValues {
   name: string;
-  collectionId: string;
+  collectionIds: string[];
   hour: number;
   minute: number;
   timezone: string;
@@ -41,7 +42,7 @@ export function CreateConnectorForm({
   const form = useForm<FormValues>({
     defaultValues: {
       name: "",
-      collectionId: "",
+      collectionIds: [],
       hour: 0,
       minute: 0,
       timezone: "UTC",
@@ -77,7 +78,7 @@ export function CreateConnectorForm({
 
   const isFormValid =
     form.watch("name") &&
-    form.watch("collectionId") &&
+    form.watch("collectionIds").length > 0 &&
     form.watch("hour") !== undefined &&
     form.watch("minute") !== undefined &&
     form.watch("timezone") !== undefined;
@@ -121,16 +122,16 @@ export function CreateConnectorForm({
           Select the collections you want to sync data to.
         </p>
         <Controller
-          name="collectionId"
+          name="collectionIds"
           control={form.control}
           rules={{ required: true }}
           render={({ field }) => (
-            <Select
+            <MultiSelect
               items={collections.map((collection) => ({
+                key: collection.id,
                 value: collection.id,
                 label: collection.name,
               }))}
-              defaultValue={field.value}
               onChange={field.onChange}
               placeholder="Select collections"
             />
