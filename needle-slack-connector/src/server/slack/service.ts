@@ -17,10 +17,7 @@ export function createSlackService(accessToken: string) {
     });
 
     const data = (await response.json()) as SlackWorkspace;
-    console.log(
-      "Slack API Response - getWorkspaces (team.info):",
-      JSON.stringify(data, null, 2),
-    );
+
     return data;
   };
 
@@ -40,10 +37,7 @@ export function createSlackService(accessToken: string) {
     );
 
     const data = (await response.json()) as SlackChannelsResponse;
-    console.log(
-      "Slack API Response - getChannels (conversations.list):",
-      JSON.stringify(data, null, 2),
-    );
+
     return data;
   };
 
@@ -61,10 +55,7 @@ export function createSlackService(accessToken: string) {
         },
       );
       const data = (await response.json()) as SlackMessagesResponse;
-      console.log(
-        `Slack API Response - getMessages (conversations.history) for channel ${channelId}:`,
-        JSON.stringify(data, null, 2),
-      );
+
       return data;
     });
 
@@ -84,10 +75,6 @@ export function createSlackService(accessToken: string) {
     );
 
     const data = (await response.json()) as SlackUserInfoResponse;
-    console.log(
-      "Slack API Response - getUserTimezone (users.info):",
-      JSON.stringify(data, null, 2),
-    );
 
     if (!data.ok || !data.user) {
       throw new Error("Failed to fetch user timezone");
@@ -117,10 +104,7 @@ export function createSlackService(accessToken: string) {
     });
 
     const data = (await response.json()) as SlackCanvasResponse;
-    console.log(
-      "Slack API Response - getCanvases (files.list):",
-      JSON.stringify(data, null, 2),
-    );
+
     return data;
   };
 

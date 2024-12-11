@@ -1,11 +1,11 @@
 {
-  "id": "4ba35ff7-043b-4048-b67a-b078b8223954",
+  "id": "391e23c4-c550-455c-85c5-c11c0d659614",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.files": {
-      "name": "files",
+    "public.slack_canvases": {
+      "name": "slack_canvases",
       "schema": "",
       "columns": {
         "id": {
@@ -24,37 +24,69 @@
           "name": "ndl_file_id",
           "type": "varchar(256)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "origin_id": {
+          "name": "origin_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar(2048)",
+          "primaryKey": false,
+          "notNull": true
         },
         "title": {
           "name": "title",
           "type": "varchar(512)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
-        "metadata": {
-          "name": "metadata",
-          "type": "jsonb",
+        "data_type": {
+          "name": "data_type",
+          "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
           "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
         }
       },
       "indexes": {},
-      "foreignKeys": {},
+      "foreignKeys": {
+        "slack_canvases_ndl_connector_id_slack_connectors_connector_id_fk": {
+          "name": "slack_canvases_ndl_connector_id_slack_connectors_connector_id_fk",
+          "tableFrom": "slack_canvases",
+          "tableTo": "slack_connectors",
+          "columnsFrom": [
+            "ndl_connector_id"
+          ],
+          "columnsTo": [
+            "connector_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
@@ -90,6 +122,86 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "public.slack_channel_messages": {
+      "name": "slack_channel_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "ndl_connector_id": {
+          "name": "ndl_connector_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ndl_file_id": {
+          "name": "ndl_file_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "channel_id": {
+          "name": "channel_id",
+          "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month_start": {
+          "name": "month_start",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "month_end": {
+          "name": "month_end",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data_type": {
+          "name": "data_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "CURRENT_TIMESTAMP"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "slack_channel_messages_ndl_connector_id_slack_connectors_connector_id_fk": {
+          "name": "slack_channel_messages_ndl_connector_id_slack_connectors_connector_id_fk",
+          "tableFrom": "slack_channel_messages",
+          "tableTo": "slack_connectors",
+          "columnsFrom": [
+            "ndl_connector_id"
+          ],
+          "columnsTo": [
+            "connector_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     }

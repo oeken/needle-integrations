@@ -52,12 +52,21 @@ export default async function ConnectorPage({
           </div>
           <div className="mt-4 flex flex-wrap gap-2 px-2">
             <span className="text-sm font-bold">Files: </span>
-            {connector.files.map((file) => (
+            {connector.canvases.map((file) => (
               <span
                 className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
                 key={file.id}
               >
                 ↗ {file.title}
+              </span>
+            ))}
+            {connector.messages.map((file) => (
+              <span
+                className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
+                key={file.id}
+              >
+                ↗
+                {`slack://messages?channel=${file.channelId}&start_time=${file.monthStart}&end_time=${file.monthEnd}`}
               </span>
             ))}
           </div>

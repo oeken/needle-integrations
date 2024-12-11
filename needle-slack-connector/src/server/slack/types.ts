@@ -1,5 +1,5 @@
 import { type ConnectorRunDescriptor } from "@needle-ai/needle-sdk";
-import { type CanvasFileMetadata, type FileMetadata } from "../db/schema";
+import { type SlackMessageSelect } from "../db/schema";
 
 // Slack API Response Types
 export interface SlackOAuthResponse {
@@ -273,24 +273,41 @@ export interface SlackCanvasResponse {
 export interface ExistingFile {
   ndlFileId: string;
   title: string | null;
-  metadata: FileMetadata;
+  channelId: string;
+  monthStart: string;
+  monthEnd: string;
+  dataType: string;
 }
 
 export interface ProcessedFiles {
   update: ConnectorRunDescriptor["update"];
   delete: ConnectorRunDescriptor["delete"];
-  filesToUpdate: { id: string; metadata: FileMetadata }[];
+  filesToUpdate: Pick<
+    SlackMessageSelect,
+    "ndlFileId" | "channelId" | "monthStart" | "monthEnd" | "dataType"
+  >[];
   filesToDelete: { id: string }[];
 }
 
 export interface NewFiles {
   create: ConnectorRunDescriptor["create"];
-  filesToCreate: { id: string; metadata: FileMetadata; title: string }[];
+  filesToCreate: {
+    ndlFileId: string;
+    channelId: string;
+    monthStart: string;
+    monthEnd: string;
+    dataType: string;
+    title?: string;
+  }[];
 }
 
 export interface DbCanvasFile {
   ndlFileId: string;
-  metadata: CanvasFileMetadata;
+  channelId: string;
+  originId: string;
+  url: string;
+  title: string;
+  dataType: string;
   updatedAt: Date;
 }
 
