@@ -8,10 +8,11 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 
 // Define types for our file operations
-interface BaseFileData {
+export interface BaseFileData {
   ndlFileId: string;
   ndlConnectorId: string;
   dataType: string;
+  updatedAt: Date;
 }
 
 export interface MessageFileData extends BaseFileData {
@@ -63,6 +64,7 @@ export async function getCurrentFiles(
         monthStart: msg.monthStart,
         monthEnd: msg.monthEnd,
         title: null,
+        updatedAt: msg.updatedAt,
       }),
     ),
     ...canvases.map(
@@ -74,6 +76,7 @@ export async function getCurrentFiles(
         originId: canvas.originId,
         url: canvas.url,
         title: canvas.title,
+        updatedAt: canvas.updatedAt,
       }),
     ),
   ];
@@ -94,15 +97,14 @@ export async function handleDatabaseUpdates(
   deletedChannelIds?: Set<string>,
 ) {
   await db.transaction(async (tx) => {
-    // Clean up deleted channels first
+    // Handle deletions
     if (deletedChannelIds && deletedChannelIds.size > 0) {
       const channelIds = Array.from(deletedChannelIds);
       console.log(
-        "[handleDatabaseUpdates] Cleaning up deleted channels:",
+        "[handleDatabaseUpdates] Processing deleted channels:",
         channelIds,
       );
 
-      // Delete all messages from deleted channels
       await tx
         .delete(slackMessagesTable)
         .where(
@@ -112,7 +114,6 @@ export async function handleDatabaseUpdates(
           ),
         );
 
-      // Delete all canvases from deleted channels
       await tx
         .delete(slackCanvasesTable)
         .where(
@@ -123,10 +124,9 @@ export async function handleDatabaseUpdates(
         );
     }
 
-    // Handle deletes
     if (deleteFiles.length > 0) {
       const fileIds = deleteFiles.map((f) => f.id);
-      console.log("[handleDatabaseUpdates] Deleting files by ID:", fileIds);
+      console.log("[handleDatabaseUpdates] Deleting files:", fileIds);
 
       await tx
         .delete(slackMessagesTable)
@@ -178,21 +178,62 @@ export async function handleDatabaseUpdates(
             url: file.url,
             title: file.title,
             dataType: file.dataType,
+            updatedAt: file.updatedAt,
           })),
         );
       }
     }
-  });
-}
 
-export async function updateChannelInfo(
-  connectorId: string,
-  channelInfo: SlackChannel[],
-) {
-  await db
-    .update(slackConnectorsTable)
-    .set({ channelInfo })
-    .where(eq(slackConnectorsTable.connectorId, connectorId));
+    // Handle canvas updates only
+    const canvasUpdates = updateFiles.filter(
+      (f): f is CanvasFileData => f.dataType === "canvas",
+    );
+
+    if (canvasUpdates.length > 0) {
+      console.log("[handleDatabaseUpdates] Found canvas updates:", {
+        count: canvasUpdates.length,
+        canvases: canvasUpdates.map((c) => ({
+          ndlFileId: c.ndlFileId,
+          title: c.title,
+          channelId: c.channelId,
+          originId: c.originId,
+          updatedAt: c.updatedAt,
+        })),
+      });
+
+      for (const canvas of canvasUpdates) {
+        console.log("[handleDatabaseUpdates] Updating canvas:", {
+          ndlFileId: canvas.ndlFileId,
+          title: canvas.title,
+          channelId: canvas.channelId,
+          originId: canvas.originId,
+          url: canvas.url,
+          updatedAt: canvas.updatedAt,
+        });
+
+        await tx
+          .update(slackCanvasesTable)
+          .set({
+            url: canvas.url,
+            title: canvas.title,
+            updatedAt: canvas.updatedAt,
+          })
+          .where(
+            and(
+              eq(slackCanvasesTable.ndlConnectorId, connectorId),
+              eq(slackCanvasesTable.ndlFileId, canvas.ndlFileId),
+            ),
+          );
+
+        console.log(
+          "[handleDatabaseUpdates] Canvas update completed:",
+          canvas.ndlFileId,
+        );
+      }
+    } else {
+      console.log("[handleDatabaseUpdates] No canvas updates found");
+    }
+  });
 }
 
 export async function createSlackConnectorRecord(
@@ -246,43 +287,12 @@ export async function getSlackConnectorWithFiles(connectorId: string) {
   };
 }
 
-export async function cleanupDeletedChannels(
+export async function updateConnectorChannelInfo(
   connectorId: string,
-  deletedChannelIds: string[],
+  channelInfo: SlackChannel[],
 ) {
-  if (!deletedChannelIds.length) return;
-
-  console.log(
-    "[cleanupDeletedChannels] Starting cleanup for channels:",
-    deletedChannelIds,
-  );
-
-  await db.transaction(async (tx) => {
-    // Delete all messages from deleted channels
-    const deletedMessages = await tx
-      .delete(slackMessagesTable)
-      .where(
-        and(
-          eq(slackMessagesTable.ndlConnectorId, connectorId),
-          inArray(slackMessagesTable.channelId, deletedChannelIds),
-        ),
-      )
-      .returning();
-
-    // Delete all canvases from deleted channels
-    const deletedCanvases = await tx
-      .delete(slackCanvasesTable)
-      .where(
-        and(
-          eq(slackCanvasesTable.ndlConnectorId, connectorId),
-          inArray(slackCanvasesTable.channelId, deletedChannelIds),
-        ),
-      )
-      .returning();
-
-    console.log("[cleanupDeletedChannels] Cleanup results:", {
-      deletedMessages: deletedMessages.length,
-      deletedCanvases: deletedCanvases.length,
-    });
-  });
+  await db
+    .update(slackConnectorsTable)
+    .set({ channelInfo })
+    .where(eq(slackConnectorsTable.connectorId, connectorId));
 }

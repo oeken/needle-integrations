@@ -103,7 +103,15 @@ export function createSlackService(accessToken: string) {
       },
     });
 
+    if (!response.ok) {
+      throw new Error(`Failed to fetch canvases: ${response.statusText}`);
+    }
+
     const data = (await response.json()) as SlackCanvasResponse;
+
+    if (!data.ok) {
+      throw new Error(`Slack API error: ${data.error ?? "Unknown error"}`);
+    }
 
     return data;
   };

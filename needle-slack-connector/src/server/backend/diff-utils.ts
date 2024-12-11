@@ -1,9 +1,6 @@
 import { TIME_CONSTANTS } from "~/utils/slack";
 import { type SlackChannel } from "../db/schema";
-import {
-  createNeedleFileId,
-  type ConnectorRunDescriptor,
-} from "@needle-ai/needle-sdk";
+import { createNeedleFileId } from "@needle-ai/needle-sdk";
 import {
   type ExistingFile,
   type ProcessedFiles,
@@ -16,7 +13,6 @@ export function generateMonthRanges(
   timezone: string,
   referenceDate: Date,
 ): { start: Date; end: Date }[] {
-  console.log("[generateMonthRanges] Input:", { timezone, referenceDate });
   const monthRanges = [];
   const effectiveDate = referenceDate;
 
@@ -43,36 +39,28 @@ export function generateMonthRanges(
     currentDate.setMonth(currentDate.getMonth() + 1);
   }
 
-  console.log("[generateMonthRanges] Output:", monthRanges);
   return monthRanges;
 }
 
 export function formatDate(date: Date): string {
-  console.log("[formatDate] Input:", date);
-  const formatted = date
+  return date
     .toLocaleDateString("en-US", {
       month: "long",
       year: "numeric",
     })
     .replace(/\s+/g, "_");
-  console.log("[formatDate] Output:", formatted);
-  return formatted;
 }
 
 export function calculateAgeInMonths(
   referenceDate: Date,
   fileDate: Date,
 ): number {
-  console.log("[calculateAgeInMonths] Input:", { referenceDate, fileDate });
   const refYear = referenceDate.getFullYear();
   const refMonth = referenceDate.getMonth();
   const fileYear = fileDate.getFullYear();
   const fileMonth = fileDate.getMonth();
 
-  const monthDifference = (fileYear - refYear) * 12 + (fileMonth - refMonth);
-
-  console.log("[calculateAgeInMonths] Output:", monthDifference);
-  return monthDifference;
+  return (fileYear - refYear) * 12 + (fileMonth - refMonth);
 }
 
 export function processExistingFiles(
@@ -80,56 +68,43 @@ export function processExistingFiles(
   effectiveDate: Date,
   connectorId: string,
   timezone: string,
+  deletedChannelIds: Set<string>,
 ): ProcessedFiles {
-  console.log("[processExistingFiles] Input:", {
-    currentFiles,
-    effectiveDate,
-    connectorId,
-    timezone,
-  });
-
-  const update: ConnectorRunDescriptor["update"] = [];
-  const deleteFiles: ConnectorRunDescriptor["delete"] = [];
-  const filesToUpdate: {
+  // For database operations - full file data
+  const dbFilesToDelete: { id: string }[] = [];
+  const dbFilesToUpdate: {
     ndlFileId: string;
     channelId: string;
     monthStart: string;
     monthEnd: string;
     dataType: string;
   }[] = [];
-  const filesToDelete: { id: string }[] = [];
 
   for (const file of currentFiles) {
+    // Handle deleted channels first
+    if (deletedChannelIds.has(file.channelId)) {
+      dbFilesToDelete.push({ id: file.ndlFileId });
+      continue;
+    }
+
     const fileDate = new Date(file.monthStart);
     const monthDifference = calculateAgeInMonths(effectiveDate, fileDate);
 
-    console.log("[processExistingFiles] Processing file:", {
-      file,
-      monthDifference,
-    });
-
+    // Handle old files
     if (
       Math.abs(monthDifference) >=
       TIME_CONSTANTS.SYNC_THRESHOLDS.DELETE_AFTER_MONTHS
     ) {
-      deleteFiles.push({ id: file.ndlFileId });
-      filesToDelete.push({ id: file.ndlFileId });
-    } else if (
+      dbFilesToDelete.push({ id: file.ndlFileId });
+      continue;
+    }
+
+    // Handle files to update
+    if (
       Math.abs(monthDifference) <=
       TIME_CONSTANTS.SYNC_THRESHOLDS.UPDATE_WITHIN_MONTHS
     ) {
-      const fileDescriptor = {
-        id: file.ndlFileId,
-        url: `slack://messages?channel=${file.channelId}&start_time=${file.monthStart}&end_time=${file.monthEnd}&timezone=${encodeURIComponent(timezone)}`,
-        type: "text/plain" as const,
-        title: file.title,
-        channelId: file.channelId,
-        monthStart: file.monthStart,
-        monthEnd: file.monthEnd,
-        dataType: file.dataType,
-      };
-      update.push(fileDescriptor);
-      filesToUpdate.push({
+      dbFilesToUpdate.push({
         ndlFileId: file.ndlFileId,
         channelId: file.channelId,
         monthStart: file.monthStart,
@@ -139,9 +114,17 @@ export function processExistingFiles(
     }
   }
 
-  const result = { update, delete: deleteFiles, filesToUpdate, filesToDelete };
-  console.log("[processExistingFiles] Output:", result);
-  return result;
+  // For connector descriptor - only IDs needed
+  const descriptorUpdates = dbFilesToUpdate.map((file) => ({
+    id: file.ndlFileId,
+  }));
+
+  return {
+    update: descriptorUpdates,
+    delete: dbFilesToDelete,
+    filesToUpdate: dbFilesToUpdate,
+    filesToDelete: dbFilesToDelete,
+  };
 }
 
 export function createNewFiles(
@@ -151,16 +134,8 @@ export function createNewFiles(
   connectorId: string,
   timezone: string,
 ): NewFiles {
-  console.log("[createNewFiles] Input:", {
-    channelInfo,
-    currentFiles,
-    effectiveDate,
-    connectorId,
-    timezone,
-  });
-
-  const create: ConnectorRunDescriptor["create"] = [];
-  const filesToCreate: {
+  // For database operations - full file data
+  const dbFilesToCreate: {
     ndlFileId: string;
     channelId: string;
     monthStart: string;
@@ -169,71 +144,62 @@ export function createNewFiles(
     title?: string;
     ndlConnectorId: string;
   }[] = [];
+
   const monthRanges = generateMonthRanges(timezone, effectiveDate);
 
   for (const channel of channelInfo) {
-    console.log("[createNewFiles] Processing channel:", channel);
-
     for (const { start, end } of monthRanges) {
       const fileId = createNeedleFileId();
       const ageInMonths = calculateAgeInMonths(start, effectiveDate);
 
-      const existingFile = currentFiles.find(
+      const fileExistsInChannel = currentFiles.find(
         (f) =>
           f.channelId === channel.id && f.monthStart === start.toISOString(),
       );
 
-      console.log("[createNewFiles] Processing month range:", {
-        start,
-        end,
-        ageInMonths,
-        existingFile,
-      });
-
-      if (ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.CREATE_WITHIN_MONTHS) {
+      if (
+        ageInMonths <= TIME_CONSTANTS.SYNC_THRESHOLDS.CREATE_WITHIN_MONTHS &&
+        !fileExistsInChannel
+      ) {
         const title = `#${channel.name}_${formatDate(start)}`.replace(
           /\s+/g,
           "_",
         );
 
-        if (!existingFile) {
-          const fileDescriptor = {
-            id: fileId,
-            url: `slack://messages?channel=${channel.id}&start_time=${start.toISOString()}&end_time=${end.toISOString()}&timezone=${encodeURIComponent(timezone)}`,
-            type: "text/plain" as const,
-            title,
-            channelId: channel.id,
-            monthStart: start.toISOString(),
-            monthEnd: end.toISOString(),
-            dataType: "slack_messages" as const,
-            ndlConnectorId: connectorId,
-          };
-
-          create.push(fileDescriptor);
-          filesToCreate.push({
-            ndlFileId: fileId,
-            channelId: channel.id,
-            monthStart: start.toISOString(),
-            monthEnd: end.toISOString(),
-            dataType: "slack_messages",
-            title,
-            ndlConnectorId: connectorId,
-          });
-        }
+        dbFilesToCreate.push({
+          ndlFileId: fileId,
+          channelId: channel.id,
+          monthStart: start.toISOString(),
+          monthEnd: end.toISOString(),
+          dataType: "slack_messages",
+          title,
+          ndlConnectorId: connectorId,
+        });
       }
     }
   }
 
-  const result = { create, filesToCreate };
-  console.log("[createNewFiles] Output:", result);
-  return result;
+  // For connector descriptor - only IDs and minimal info needed
+  const descriptorCreates = dbFilesToCreate.map((file) => ({
+    id: file.ndlFileId,
+    url: `slack://messages?channel=${file.channelId}&start_time=${file.monthStart}&end_time=${file.monthEnd}&timezone=${encodeURIComponent(timezone)}`,
+    type: "text/plain" as const,
+  }));
+
+  return {
+    create: descriptorCreates,
+    filesToCreate: dbFilesToCreate,
+  };
 }
 
 export function computeCanvasDiff(
   currentFiles: DbCanvasFile[],
   liveCanvases: LiveCanvas[],
 ) {
-  console.log("[computeCanvasDiff] Input:", { currentFiles, liveCanvases });
+  console.log("[computeCanvasDiff] Starting diff with:", {
+    currentFiles: currentFiles.length,
+    liveCanvases: liveCanvases.length,
+  });
 
   const create: LiveCanvas[] = [];
   const update: LiveCanvas[] = [];
@@ -241,8 +207,6 @@ export function computeCanvasDiff(
 
   // Check for new and updated canvases
   for (const liveCanvas of liveCanvases) {
-    console.log("[computeCanvasDiff] Processing live canvas:", liveCanvas);
-
     const currentCanvas = currentFiles.find(
       (f) =>
         f.channelId === liveCanvas.channelId &&
@@ -250,9 +214,37 @@ export function computeCanvasDiff(
     );
 
     if (!currentCanvas) {
+      console.log("[computeCanvasDiff] New canvas found:", {
+        channelId: liveCanvas.channelId,
+        originId: liveCanvas.originId,
+        title: liveCanvas.title,
+      });
       create.push(liveCanvas);
     } else {
-      if (liveCanvas.updatedAt > currentCanvas.updatedAt.getTime() / 1000) {
+      // Convert both timestamps to seconds for comparison
+      const liveTimestamp = liveCanvas.updatedAt; // Already in seconds
+      const currentTimestamp = Math.floor(
+        currentCanvas.updatedAt.getTime() / 1000,
+      ); // Convert ms to seconds
+
+      console.log("[computeCanvasDiff] Comparing timestamps:", {
+        channelId: liveCanvas.channelId,
+        originId: liveCanvas.originId,
+        title: liveCanvas.title,
+        liveTimestamp,
+        currentTimestamp,
+        difference: liveTimestamp - currentTimestamp,
+        needsUpdate: liveTimestamp > currentTimestamp,
+      });
+
+      if (liveTimestamp > currentTimestamp) {
+        console.log("[computeCanvasDiff] Canvas needs update:", {
+          channelId: liveCanvas.channelId,
+          originId: liveCanvas.originId,
+          oldTitle: currentCanvas.title,
+          newTitle: liveCanvas.title,
+          timeDifference: liveTimestamp - currentTimestamp,
+        });
         update.push(liveCanvas);
       }
     }
@@ -260,11 +252,6 @@ export function computeCanvasDiff(
 
   // Check for deleted canvases
   for (const currentFile of currentFiles) {
-    console.log(
-      "[computeCanvasDiff] Checking for deleted canvas:",
-      currentFile,
-    );
-
     const exists = liveCanvases.some(
       (lc) =>
         lc.channelId === currentFile.channelId &&
@@ -272,6 +259,11 @@ export function computeCanvasDiff(
     );
 
     if (!exists) {
+      console.log("[computeCanvasDiff] Canvas deleted:", {
+        channelId: currentFile.channelId,
+        originId: currentFile.originId,
+        title: currentFile.title,
+      });
       delete_.push({
         channelId: currentFile.channelId,
         originId: currentFile.originId,
@@ -279,7 +271,11 @@ export function computeCanvasDiff(
     }
   }
 
-  const result = { create, update, delete: delete_ };
-  console.log("[computeCanvasDiff] Output:", result);
-  return result;
+  console.log("[computeCanvasDiff] Diff results:", {
+    created: create.length,
+    updated: update.length,
+    deleted: delete_.length,
+  });
+
+  return { create, update, delete: delete_ };
 }

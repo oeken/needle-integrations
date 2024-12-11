@@ -12,9 +12,6 @@ import {
   type ConnectorRunDescriptor,
   createNeedleFileId,
 } from "@needle-ai/needle-sdk";
-import { slackConnectorsTable } from "../db/schema";
-import { db } from "../db";
-import { eq } from "drizzle-orm";
 import {
   getConnectorDetails,
   getCurrentFiles,
@@ -23,7 +20,7 @@ import {
   createSlackConnectorRecord,
   deleteSlackConnectorRecords,
   getSlackConnectorWithFiles,
-  cleanupDeletedChannels,
+  updateConnectorChannelInfo,
 } from "./slack-db";
 import {
   computeCanvasDiff,
@@ -42,15 +39,6 @@ export async function createSlackConnector(
   params: CreateConnectorRequest,
   session: Session,
 ) {
-  console.log(
-    "[createSlackConnector] Starting connector creation with params:",
-    {
-      name: params.name,
-      channels: params.channels.length,
-      timezone: params.timezone,
-    },
-  );
-
   if (!params.channels.length) {
     throw new Error("At least one channel must be provided");
   }
@@ -66,11 +54,6 @@ export async function createSlackConnector(
     session.id,
   );
 
-  console.log("[createSlackConnector] Created connector:", {
-    connector,
-    params,
-  });
-
   await createSlackConnectorRecord(
     connector.id,
     params.channels,
@@ -85,17 +68,13 @@ export async function runSlackConnector(
   { connectorId, simulateDate }: { connectorId: string; simulateDate?: Date },
   session?: Session,
 ) {
-  console.log("[runSlackConnector] Starting connector run:", {
-    connectorId,
-    simulateDate: simulateDate?.toISOString(),
-  });
-
   const effectiveDate = simulateDate ?? new Date();
 
   if (!session) {
     throw new Error("Session required for connector run");
   }
 
+  // Get connector and its details
   const [connector, connectorDetails] = await Promise.all([
     getConnector(connectorId, session.id),
     getConnectorDetails(connectorId),
@@ -105,91 +84,30 @@ export async function runSlackConnector(
   if (!connectorDetails)
     throw new Error(`No Slack connector found for ID: ${connectorId}`);
 
-  const initialFiles = await getCurrentFiles(connectorId);
-  console.log("[runSlackConnector] Retrieved initial files:", {
-    files: initialFiles,
-  });
-
-  // Get current channel list from Slack to verify channel existence
+  // Get current Slack channels and identify deleted ones
   const slackService = createSlackService(connector.credentials ?? "");
-  const channelsResponse = (await slackService.getChannels()) as {
-    ok: boolean;
-    channels?: { id: string; name: string }[];
-  };
+  const slackChannels = await slackService.getChannels();
 
-  if (!channelsResponse.ok || !channelsResponse.channels) {
+  if (!slackChannels.ok || !slackChannels.channels) {
     throw new Error("Failed to fetch channels from Slack");
   }
 
-  // Filter out deleted channels from connector's channelInfo
-  const existingChannelIds = new Set(
-    channelsResponse.channels.map((c) => c.id),
-  );
-  const updatedChannelInfo =
+  const liveChannelIds = new Set(slackChannels.channels.map((c) => c.id));
+  const activeConfiguredChannels =
     connectorDetails.channelInfo?.filter((channel) =>
-      existingChannelIds.has(channel.id),
+      liveChannelIds.has(channel.id),
     ) ?? [];
-
-  // Get list of deleted channel IDs
   const deletedChannelIds = new Set(
     (connectorDetails.channelInfo ?? [])
-      .filter((channel) => !existingChannelIds.has(channel.id))
+      .filter((channel) => !liveChannelIds.has(channel.id))
       .map((channel) => channel.id),
   );
 
-  console.log("[runSlackConnector] Channel status:", {
-    totalChannels: channelsResponse.channels,
-    activeChannels: updatedChannelInfo,
-    deletedChannels: Array.from(deletedChannelIds),
-  });
-
-  // Clean up deleted channels first
-  if (deletedChannelIds.size > 0) {
-    console.log("[runSlackConnector] Cleaning up deleted channels");
-    await cleanupDeletedChannels(connectorId, Array.from(deletedChannelIds));
-  }
-
-  // Update connector's channelInfo if channels were removed
-  if (
-    updatedChannelInfo.length !== (connectorDetails.channelInfo?.length ?? 0)
-  ) {
-    await db
-      .update(slackConnectorsTable)
-      .set({ channelInfo: updatedChannelInfo })
-      .where(eq(slackConnectorsTable.connectorId, connectorId));
-
-    connectorDetails.channelInfo = updatedChannelInfo;
-  }
-
-  // Get current files again after cleanup
-  const remainingFiles = await getCurrentFiles(connectorId);
-
-  // Add files from deleted channels to the delete list (if any still exist)
-  const deletedChannelFiles = remainingFiles
-    .filter((file) => deletedChannelIds.has(file.channelId))
-    .map((file) => ({ id: file.ndlFileId }));
-
-  if (deletedChannelFiles.length > 0) {
-    console.log(
-      "[runSlackConnector] Warning: Found files from deleted channels after cleanup:",
-      {
-        files: deletedChannelFiles,
-      },
-    );
-  }
-
-  // Process only files from active channels
-  const activeFiles = remainingFiles.filter(
-    (file) => !deletedChannelIds.has(file.channelId),
-  );
-
-  // Improved file type separation
-  const { messageFiles, canvasFiles } = activeFiles.reduce(
+  // Get all current files and separate by type
+  const allFiles = await getCurrentFiles(connectorId);
+  const { messageFiles, canvasFiles } = allFiles.reduce(
     (
-      acc: {
-        messageFiles: MessageFileData[];
-        canvasFiles: CanvasFileData[];
-      },
+      acc: { messageFiles: MessageFileData[]; canvasFiles: CanvasFileData[] },
       file,
     ) => {
       if (file.dataType === "slack_messages") {
@@ -199,47 +117,29 @@ export async function runSlackConnector(
       }
       return acc;
     },
-    {
-      messageFiles: [],
-      canvasFiles: [],
-    },
+    { messageFiles: [], canvasFiles: [] },
   );
 
-  console.log("[runSlackConnector] File type breakdown:", {
-    messageFiles: messageFiles.length,
-    canvasFiles: canvasFiles.length,
-  });
-
-  // Process regular message files
-  const {
-    update,
-    delete: deleteFiles,
-    filesToUpdate,
-    filesToDelete,
-  } = processExistingFiles(
+  // Process message files
+  const messageChanges = processExistingFiles(
     messageFiles,
     effectiveDate,
     connectorId,
     connectorDetails.timezone ?? "UTC",
+    deletedChannelIds,
   );
 
-  const { create, filesToCreate } = createNewFiles(
-    updatedChannelInfo,
+  const newMessages = createNewFiles(
+    activeConfiguredChannels,
     messageFiles as ExistingFile[],
     effectiveDate,
     connectorId,
     connectorDetails.timezone ?? "UTC",
   );
 
-  console.log("[runSlackConnector] Message file operations:", {
-    create: create,
-    update: update,
-    delete: [...deleteFiles, ...deletedChannelFiles],
-  });
-
-  // Process canvas files
+  // Get current canvas files from Slack
   const liveCanvases = [];
-  for (const channel of updatedChannelInfo) {
+  for (const channel of activeConfiguredChannels) {
     const canvasResponse = await slackService.getCanvases(channel.id);
     if (canvasResponse.ok && canvasResponse.files) {
       const canvases = canvasResponse.files.map((file) => ({
@@ -255,35 +155,22 @@ export async function runSlackConnector(
     }
   }
 
-  console.log("[runSlackConnector] Retrieved live canvases:", {
-    total: liveCanvases,
-  });
-
-  // Compute canvas differences excluding deleted channels
-  const canvasDiff = computeCanvasDiff(
-    canvasFiles
-      .filter((file) => existingChannelIds.has(file.channelId))
-      .map((file) => ({
-        ndlFileId: file.ndlFileId,
-        channelId: file.channelId,
-        originId: file.originId,
-        url: file.url,
-        title: file.title,
-        dataType: file.dataType,
-        updatedAt: new Date(),
-      })),
+  // Process canvas files
+  const canvasChanges = computeCanvasDiff(
+    canvasFiles.map((file) => ({
+      ndlFileId: file.ndlFileId,
+      channelId: file.channelId,
+      originId: file.originId,
+      url: file.url,
+      title: file.title,
+      dataType: file.dataType,
+      updatedAt: file.updatedAt,
+    })),
     liveCanvases,
   );
 
-  const canvasFileMap = new Map(
-    canvasFiles.map((file) => [
-      `${file.channelId}-${file.originId}`,
-      file.ndlFileId,
-    ]),
-  );
-
-  // Prepare canvas operations
-  const canvasFilesToCreate = canvasDiff.create.map((canvas) => ({
+  // Prepare database operations for canvases
+  const dbCanvasesToCreate = canvasChanges.create.map((canvas) => ({
     ndlFileId: createNeedleFileId(),
     ndlConnectorId: connectorId,
     channelId: canvas.channelId,
@@ -291,16 +178,25 @@ export async function runSlackConnector(
     url: canvas.url,
     title: canvas.title,
     dataType: canvas.dataType,
+    updatedAt: new Date(canvas.updatedAt * 1000),
   }));
 
-  const canvasFilesToUpdate = canvasDiff.update.map((canvas) => {
-    const existingFileId = canvasFileMap.get(
+  const canvasIdMap = new Map(
+    canvasFiles.map((file) => [
+      `${file.channelId}-${file.originId}`,
+      file.ndlFileId,
+    ]),
+  );
+
+  const dbCanvasesToUpdate = canvasChanges.update.map((canvas) => {
+    const existingFileId = canvasIdMap.get(
       `${canvas.channelId}-${canvas.originId}`,
     );
-    if (!existingFileId)
+    if (!existingFileId) {
       throw new Error(
         `No existing file ID found for canvas ${canvas.originId}`,
       );
+    }
     return {
       ndlFileId: existingFileId,
       ndlConnectorId: connectorId,
@@ -309,52 +205,56 @@ export async function runSlackConnector(
       url: canvas.url,
       title: canvas.title,
       dataType: canvas.dataType,
+      updatedAt: new Date(canvas.updatedAt * 1000),
     };
   });
 
-  const canvasFilesToDelete = canvasDiff.delete.map((canvas) => {
-    const existingFileId = canvasFileMap.get(
+  const dbCanvasesToDelete = canvasChanges.delete.map((canvas) => {
+    const existingFileId = canvasIdMap.get(
       `${canvas.channelId}-${canvas.originId}`,
     );
-    if (!existingFileId)
+    if (!existingFileId) {
       throw new Error(
         `No existing file ID found for canvas ${canvas.originId}`,
       );
+    }
     return { id: existingFileId };
   });
 
-  console.log("[runSlackConnector] Canvas file operations:", {
-    create: canvasFilesToCreate,
-    update: canvasFilesToUpdate,
-    delete: canvasFilesToDelete,
-  });
-
-  // Publish connector run with all operations
+  // Prepare connector run descriptor (minimal data needed for the connector)
   const descriptor: ConnectorRunDescriptor = {
     create: [
-      ...create.map((file) => ({
+      ...newMessages.create.map((file) => ({
         id: file.id,
         url: typeof file.url === "string" ? file.url : "",
         type: "text/plain" as const,
       })),
-      ...canvasFilesToCreate.map((file) => ({
+      ...dbCanvasesToCreate.map((file) => ({
         id: file.ndlFileId,
         url: file.url,
         type: "text/plain" as const,
       })),
     ],
     update: [
-      ...update.map((file) => ({
-        id: file.id,
-      })),
-      ...canvasFilesToUpdate.map((file) => ({
-        id: file.ndlFileId,
-      })),
+      ...messageChanges.update.map((file) => ({ id: file.id })),
+      ...dbCanvasesToUpdate.map((file) => ({ id: file.ndlFileId })),
     ],
-    delete: [...deleteFiles, ...canvasFilesToDelete, ...deletedChannelFiles],
+    delete: [...messageChanges.delete, ...dbCanvasesToDelete],
   };
 
-  console.log("[runSlackConnector] Publishing connector run with operations:", {
+  console.log("[runSlackConnector] Canvas changes:", {
+    create: dbCanvasesToCreate,
+    update: dbCanvasesToUpdate,
+    delete: dbCanvasesToDelete,
+  });
+
+  console.log("[runSlackConnector] Message changes:", {
+    create: newMessages.create,
+    update: messageChanges.update,
+    delete: messageChanges.delete,
+  });
+
+  console.log("[runSlackConnector] Publishing connector run:", {
     descriptor,
   });
 
@@ -362,28 +262,22 @@ export async function runSlackConnector(
 
   await handleDatabaseUpdates(
     connectorId,
-    [...filesToCreate, ...canvasFilesToCreate] as FileData[],
-    [...filesToUpdate, ...canvasFilesToUpdate] as FileData[],
-    [...filesToDelete, ...canvasFilesToDelete, ...deletedChannelFiles],
+    [...newMessages.filesToCreate, ...dbCanvasesToCreate] as FileData[],
+    [...messageChanges.filesToUpdate, ...dbCanvasesToUpdate] as FileData[],
+    [...messageChanges.filesToDelete, ...dbCanvasesToDelete],
     deletedChannelIds,
   );
 
   await updateLastSynced(connectorId);
 
-  // Update channelInfo in the database if needed
-  await db
-    .update(slackConnectorsTable)
-    .set({ channelInfo: connectorDetails.channelInfo })
-    .where(eq(slackConnectorsTable.connectorId, connectorId));
-
-  console.log("[runSlackConnector] Completed connector run successfully");
+  // Update channel info if needed
+  await updateConnectorChannelInfo(
+    connectorId,
+    connectorDetails.channelInfo ?? [],
+  );
 }
 
 export async function listSlackConnectors(session: Session) {
-  console.log(
-    "[listSlackConnectors] Fetching connectors for session:",
-    session.id,
-  );
   return await listConnectors(session.id);
 }
 
@@ -391,11 +285,6 @@ export async function getSlackConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
-  console.log("[getSlackConnector] Fetching connector:", {
-    connectorId,
-    sessionId: session.id,
-  });
-
   const connector = await getConnector(connectorId, session.id);
   if (!connector) {
     throw new Error(`No connector found for ID: ${connectorId}`);
@@ -413,11 +302,6 @@ export async function deleteSlackConnector(
   { connectorId }: ConnectorRequest,
   session: Session,
 ) {
-  console.log("[deleteSlackConnector] Deleting connector:", {
-    connectorId,
-    sessionId: session.id,
-  });
-
   const connector = await deleteConnector(connectorId, session.id);
   await deleteSlackConnectorRecords(connectorId);
   return connector;
