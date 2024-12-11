@@ -1,7 +1,7 @@
 export default {
-  appId: "fmplt659k6de",
-  appName: "needle-slack",
-  appSlug: "dev-fmplt659k6de",
-  connectorType: "ext_dev_fmplt659k6de",
+  appId: "qtqbgkk77t6l",
+  appName: "needle-slack-app",
+  appSlug: "dev-qtqbgkk77t6l",
+  connectorType: "ext_dev_qtqbgkk77t6l",
   connectorLogo: "",
 };

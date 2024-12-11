@@ -1,19 +1,19 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
+import { type TimezoneInfo } from "~/models/connectors-models";
 import {
   type SlackMessage,
   type SlackWorkspace,
-} from "~/models/connectors-models";
-import { type TimezoneInfo } from "~/server/slack/service";
-import { type SlackChannel } from "~/server/db/schema"; // Use SlackChannel type from schema
+  type SlackChannel,
+  type SlackChannelWithCanvases,
+} from "~/server/slack/types";
 
 import { api } from "~/trpc/react";
-import { skipToken } from "@tanstack/react-query";
 
 type SlackResourcesContextType = {
-  selectedChannels: SlackChannel[]; // Use SlackChannel type
-  setSelectedChannels: (channels: SlackChannel[]) => void;
+  selectedChannels: SlackChannelWithCanvases[];
+  setSelectedChannels: (channels: SlackChannelWithCanvases[]) => void;
   channels: SlackChannel[] | undefined;
   messages: SlackMessage[] | undefined;
   workspace: SlackWorkspace | undefined;
@@ -36,7 +36,9 @@ export function SlackResourcesProvider({
   credentials,
   userId,
 }: SlackResourcesProviderProps) {
-  const [selectedChannels, setSelectedChannels] = useState<SlackChannel[]>([]);
+  const [selectedChannels, setSelectedChannels] = useState<
+    SlackChannelWithCanvases[]
+  >([]);
 
   const { data: workspace, isLoading: isWorkspaceLoading } =
     api.connectors.getWorkspaces.useQuery({
@@ -54,43 +56,41 @@ export function SlackResourcesProvider({
       userId,
     }) as { data: TimezoneInfo | undefined; isLoading: boolean };
 
-  const { data: messages, isLoading: isMessagesLoading } =
-    api.connectors.getMessages.useQuery(
-      selectedChannels.length > 0
-        ? {
-            accessToken: credentials,
-            channelIds: selectedChannels.map((channel) => channel.id),
-          }
-        : skipToken,
-      {
-        enabled: selectedChannels.length > 0,
-      },
-    );
-
-  const mappedMessages = messages?.flatMap(
-    (channelMessages, index) =>
-      channelMessages.messages.map((msg) => ({
-        ...msg,
-        channelName: selectedChannels[index]?.name,
-        channelId: selectedChannels[index]?.id,
-      })) as SlackMessage[],
+  const { data: messages } = api.connectors.getMessages.useQuery(
+    {
+      accessToken: credentials,
+      channelIds: selectedChannels.map((channel) => channel.id),
+    },
+    {
+      enabled: selectedChannels.length > 0,
+    },
   );
 
   const { data: canvases } = api.connectors.getCanvases.useQuery(
-    selectedChannels.length > 0
-      ? {
-          accessToken: credentials,
-          channelId: selectedChannels[selectedChannels.length - 1]?.id ?? "",
-        }
-      : skipToken,
+    {
+      accessToken: credentials,
+      channelId: selectedChannels[selectedChannels.length - 1]?.id ?? "",
+    },
+    {
+      enabled: selectedChannels.length > 0,
+    },
   );
+
+  const mappedMessages = messages?.flatMap((channelMessages, index) => {
+    if (!channelMessages.messages) return [];
+    return channelMessages.messages.map((msg) => ({
+      ...msg,
+      channelName: selectedChannels[index]?.name ?? "",
+      channelId: selectedChannels[index]?.id ?? "",
+    }));
+  });
 
   useEffect(() => {
     if (canvases && selectedChannels.length > 0) {
       const lastSelectedChannel = selectedChannels[selectedChannels.length - 1];
 
       if (canvases && selectedChannels.length > 0 && lastSelectedChannel) {
-        const updatedChannel: SlackChannel = {
+        const updatedChannel: SlackChannelWithCanvases = {
           id: lastSelectedChannel.id,
           name: lastSelectedChannel.name,
           canvases:
@@ -108,13 +108,15 @@ export function SlackResourcesProvider({
         setSelectedChannels((prev) => [...prev.slice(0, -1), updatedChannel]);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canvases]);
 
-  const handleChannelSelect = (channels: SlackChannel[]) => {
+  const handleChannelSelect = (channels: SlackChannelWithCanvases[]) => {
     setSelectedChannels(channels);
   };
 
-  const isLoading = isChannelsLoading;
+  const isLoading =
+    isChannelsLoading || isWorkspaceLoading || isTimezoneLoading;
 
   return (
     <SlackResourcesContext.Provider

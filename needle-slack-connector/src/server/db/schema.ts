@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTableCreator,
   serial,
@@ -33,7 +34,10 @@ export const filesTable = createTable("files", {
     .notNull()
     .$type<FileMetadata | CanvasFileMetadata>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .$onUpdate(() => new Date())
+    .notNull(),
 });
 
 export const slackConnectorsTable = createTable("slack_connectors", {

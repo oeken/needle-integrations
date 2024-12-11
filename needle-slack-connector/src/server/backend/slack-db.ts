@@ -59,8 +59,6 @@ export async function handleDatabaseUpdates(
             }
           : {}),
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
       title: file.title,
     }));
 
@@ -81,7 +79,6 @@ export async function handleDatabaseUpdates(
               }
             : {}),
         },
-        updatedAt: new Date(),
         ...(file.title ? { title: file.title } : {}),
       })
       .where(

@@ -28,7 +28,7 @@ import {
   computeCanvasDiff,
   createNewFiles,
   processExistingFiles,
-} from "./dif-utils";
+} from "./diff-utils";
 import { createSlackService } from "../slack/service";
 import { type ExistingFile } from "../slack/types";
 
@@ -51,23 +51,19 @@ export async function createSlackConnector(
     session.id,
   );
 
-  try {
-    await createSlackConnectorRecord(
-      connector.id,
-      params.channels,
-      params.timezone,
-    );
-    await runSlackConnector({ connectorId: connector.id }, session);
-    return connector;
-  } catch (error) {
-    await deleteConnector(connector.id, session.id);
-    throw error;
-  }
+  await createSlackConnectorRecord(
+    connector.id,
+    params.channels,
+    params.timezone,
+  );
+
+  await runSlackConnector({ connectorId: connector.id }, session);
+  return connector;
 }
 
 export async function runSlackConnector(
   { connectorId, simulateDate }: { connectorId: string; simulateDate?: Date },
-  session: Session,
+  session?: Session,
 ) {
   const effectiveDate = simulateDate ?? new Date();
 

@@ -9,7 +9,7 @@ export function DeleteConnectorButton({
   connectorId: string;
 }) {
   const router = useRouter();
-  const { mutate: deleteZendeskConnector } = api.connectors.delete.useMutation({
+  const { mutate: deleteSlackConnector } = api.connectors.delete.useMutation({
     onSuccess: () => {
       router.push("/connectors");
       router.refresh();
@@ -18,7 +18,7 @@ export function DeleteConnectorButton({
 
   return (
     <button
-      onClick={() => deleteZendeskConnector({ connectorId })}
+      onClick={() => deleteSlackConnector({ connectorId })}
       className="ml-auto rounded-md border border-red-600 px-3 py-1 text-sm text-red-600 hover:bg-red-600 hover:text-white"
     >
       Delete

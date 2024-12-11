@@ -4,9 +4,11 @@
 import { useSlackResources } from "../providers/SlackResourcesProvider";
 import { CreateConnectorForm } from "../CreateConnnectorForm";
 import { type Collection } from "@needle-ai/needle-sdk";
-import { formatDateTime } from "~/utils/format-date-time";
 import { SlackResourceInfo } from "./SlackResourceInfo";
-import { type SlackChannel } from "~/server/db/schema";
+
+import { SlackMessageRow } from "./SlackMessageRow";
+import { FileTextIcon } from "lucide-react";
+import { type SlackChannelWithCanvases } from "~/server/slack/types";
 
 export function SlackWorkspacePreview({
   collections,
@@ -24,7 +26,7 @@ export function SlackWorkspacePreview({
     isLoading,
   } = useSlackResources();
 
-  const handleChannelToggle = (channel: SlackChannel) => {
+  const handleChannelToggle = (channel: SlackChannelWithCanvases) => {
     const isSelected = selectedChannels.some((c) => c.id === channel.id);
     const newChannels = isSelected
       ? selectedChannels.filter((c) => c.id !== channel.id)
@@ -131,19 +133,7 @@ export function SlackWorkspacePreview({
                         <p className="font-medium">#{channel.name}</p>
                         {canvasCount > 0 && (
                           <div className="flex items-center gap-1">
-                            <svg
-                              className="h-4 w-4 text-zinc-400"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={1.5}
-                                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                              />
-                            </svg>
+                            <FileTextIcon className="h-4 w-4 text-zinc-400" />
                             <span className="text-xs text-zinc-500">
                               This channel contains {canvasCount}{" "}
                               {canvasCount === 1 ? "Canvas" : "Canvases"}
@@ -177,28 +167,7 @@ export function SlackWorkspacePreview({
           ) : (
             <div className="space-y-2">
               {getMessagesPerChannel().map((message) => (
-                <div
-                  key={message.ts}
-                  className="rounded-md border border-zinc-200 p-4 hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                          #{message.channelName}
-                        </span>
-                      </div>
-                      <span className="text-sm text-zinc-500">
-                        {formatDateTime(
-                          new Date(Number(message.ts) * 1000).toISOString(),
-                        )}
-                      </span>
-                    </div>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {message.text}
-                    </p>
-                  </div>
-                </div>
+                <SlackMessageRow key={message.ts} message={message} />
               ))}
             </div>
           )}
