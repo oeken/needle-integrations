@@ -78,7 +78,7 @@ export type SlackChannel = {
     title: string;
     originId: string;
     createdAt: number;
-    updatedAt: number;
+    updatedAt?: number;
     dataType: string;
   }[];
 };

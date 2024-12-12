@@ -20,9 +20,9 @@ import { createSlackService } from "~/server/slack/service";
 export const connectorsRouter = createTRPCRouter({
   create: procedure
     .input(CreateConnectorRequestSchema)
-    .mutation(async ({ ctx, input }) =>
-      createSlackConnector(input, ctx.session),
-    ),
+    .mutation(async ({ ctx, input }) => {
+      return createSlackConnector(input, ctx.session);
+    }),
 
   list: procedure.query(async ({ ctx }) => listSlackConnectors(ctx.session)),
 

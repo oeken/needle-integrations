@@ -196,11 +196,6 @@ export function computeCanvasDiff(
   currentFiles: DbCanvasFile[],
   liveCanvases: LiveCanvas[],
 ) {
-  console.log("[computeCanvasDiff] Starting diff with:", {
-    currentFiles: currentFiles.length,
-    liveCanvases: liveCanvases.length,
-  });
-
   const create: LiveCanvas[] = [];
   const update: LiveCanvas[] = [];
   const delete_: { channelId: string; originId: string }[] = [];
@@ -214,11 +209,6 @@ export function computeCanvasDiff(
     );
 
     if (!currentCanvas) {
-      console.log("[computeCanvasDiff] New canvas found:", {
-        channelId: liveCanvas.channelId,
-        originId: liveCanvas.originId,
-        title: liveCanvas.title,
-      });
       create.push(liveCanvas);
     } else {
       // Convert both timestamps to seconds for comparison
@@ -227,24 +217,7 @@ export function computeCanvasDiff(
         currentCanvas.updatedAt.getTime() / 1000,
       ); // Convert ms to seconds
 
-      console.log("[computeCanvasDiff] Comparing timestamps:", {
-        channelId: liveCanvas.channelId,
-        originId: liveCanvas.originId,
-        title: liveCanvas.title,
-        liveTimestamp,
-        currentTimestamp,
-        difference: liveTimestamp - currentTimestamp,
-        needsUpdate: liveTimestamp > currentTimestamp,
-      });
-
       if (liveTimestamp > currentTimestamp) {
-        console.log("[computeCanvasDiff] Canvas needs update:", {
-          channelId: liveCanvas.channelId,
-          originId: liveCanvas.originId,
-          oldTitle: currentCanvas.title,
-          newTitle: liveCanvas.title,
-          timeDifference: liveTimestamp - currentTimestamp,
-        });
         update.push(liveCanvas);
       }
     }
@@ -259,23 +232,12 @@ export function computeCanvasDiff(
     );
 
     if (!exists) {
-      console.log("[computeCanvasDiff] Canvas deleted:", {
-        channelId: currentFile.channelId,
-        originId: currentFile.originId,
-        title: currentFile.title,
-      });
       delete_.push({
         channelId: currentFile.channelId,
         originId: currentFile.originId,
       });
     }
   }
-
-  console.log("[computeCanvasDiff] Diff results:", {
-    created: create.length,
-    updated: update.length,
-    deleted: delete_.length,
-  });
 
   return { create, update, delete: delete_ };
 }

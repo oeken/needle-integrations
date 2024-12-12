@@ -18,7 +18,7 @@ export const CreateConnectorRequestSchema = z.object({
             url: z.string(),
             title: z.string(),
             createdAt: z.number(),
-            updatedAt: z.number(),
+            updatedAt: z.number().optional(),
             dataType: z.string(),
           }),
         )

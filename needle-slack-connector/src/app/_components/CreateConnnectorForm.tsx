@@ -50,14 +50,16 @@ export function CreateConnectorForm({
     // Convert hour and minute to cron format
     const cronJob = `${data.minute} ${data.hour} * * *`;
 
-    createSlackConnector({
+    const payload = {
       ...data,
       cronJob,
       cronJobTimezone: data.timezone,
       credentials,
-      channels: selectedChannels, // Changed from selectedChannels to match schema
+      channels: selectedChannels,
       timezone: userTimezone?.timezone ?? "UTC",
-    });
+    };
+
+    createSlackConnector(payload);
   };
 
   const isFormValid =
@@ -172,7 +174,7 @@ export function CreateConnectorForm({
         className="ml-auto"
         type="submit"
       >
-        Create Web Connector
+        Create Slack Connector
       </Button>
     </form>
   );

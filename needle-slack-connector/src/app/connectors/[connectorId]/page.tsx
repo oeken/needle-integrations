@@ -6,7 +6,6 @@ import { getSession } from "~/utils/session-utils";
 import { Footer } from "~/app/_components/atoms/Footer";
 import { Header } from "~/app/_components/atoms/Header";
 import { DeleteConnectorButton } from "~/app/_components/DeleteConnectorButton";
-import { RunConnectorButton } from "~/app/_components/RunConnectorButton";
 
 interface ConnectorPageProps {
   params: {
@@ -19,6 +18,11 @@ export default async function ConnectorPage({
 }: ConnectorPageProps) {
   const { user } = await getSession();
   const connector = await api.connectors.get({ connectorId });
+
+  // Create a map of channel IDs to names for easy lookup
+  const channelMap = new Map(
+    connector.channelInfo?.map((channel) => [channel.id, channel.name]),
+  );
 
   return (
     <>
@@ -35,8 +39,6 @@ export default async function ConnectorPage({
             <h1 className="text-5xl font-extrabold tracking-tight">
               {connector.name}
             </h1>
-
-            <RunConnectorButton connectorId={connectorId} />
 
             {connector.error && (
               <span className="ml-auto text-3xl text-red-600">✗</span>
@@ -57,7 +59,7 @@ export default async function ConnectorPage({
                 className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
                 key={file.id}
               >
-                ↗ {file.title}
+                ↗ {file.title} (#{channelMap.get(file.channelId)})
               </span>
             ))}
             {connector.messages.map((file) => (
@@ -65,8 +67,7 @@ export default async function ConnectorPage({
                 className="rounded-md border border-blue-400 px-2 text-sm text-blue-300 hover:bg-blue-400 hover:text-black"
                 key={file.id}
               >
-                ↗
-                {`slack://messages?channel=${file.channelId}&start_time=${file.monthStart}&end_time=${file.monthEnd}`}
+                {`slack://messages?channel=${channelMap.get(file.channelId)}&start_time=${file.monthStart}&end_time=${file.monthEnd}`}
               </span>
             ))}
           </div>

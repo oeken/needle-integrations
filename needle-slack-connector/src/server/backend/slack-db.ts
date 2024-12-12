@@ -100,10 +100,6 @@ export async function handleDatabaseUpdates(
     // Handle deletions
     if (deletedChannelIds && deletedChannelIds.size > 0) {
       const channelIds = Array.from(deletedChannelIds);
-      console.log(
-        "[handleDatabaseUpdates] Processing deleted channels:",
-        channelIds,
-      );
 
       await tx
         .delete(slackMessagesTable)
@@ -126,7 +122,6 @@ export async function handleDatabaseUpdates(
 
     if (deleteFiles.length > 0) {
       const fileIds = deleteFiles.map((f) => f.id);
-      console.log("[handleDatabaseUpdates] Deleting files:", fileIds);
 
       await tx
         .delete(slackMessagesTable)
@@ -190,27 +185,7 @@ export async function handleDatabaseUpdates(
     );
 
     if (canvasUpdates.length > 0) {
-      console.log("[handleDatabaseUpdates] Found canvas updates:", {
-        count: canvasUpdates.length,
-        canvases: canvasUpdates.map((c) => ({
-          ndlFileId: c.ndlFileId,
-          title: c.title,
-          channelId: c.channelId,
-          originId: c.originId,
-          updatedAt: c.updatedAt,
-        })),
-      });
-
       for (const canvas of canvasUpdates) {
-        console.log("[handleDatabaseUpdates] Updating canvas:", {
-          ndlFileId: canvas.ndlFileId,
-          title: canvas.title,
-          channelId: canvas.channelId,
-          originId: canvas.originId,
-          url: canvas.url,
-          updatedAt: canvas.updatedAt,
-        });
-
         await tx
           .update(slackCanvasesTable)
           .set({
@@ -224,14 +199,7 @@ export async function handleDatabaseUpdates(
               eq(slackCanvasesTable.ndlFileId, canvas.ndlFileId),
             ),
           );
-
-        console.log(
-          "[handleDatabaseUpdates] Canvas update completed:",
-          canvas.ndlFileId,
-        );
       }
-    } else {
-      console.log("[handleDatabaseUpdates] No canvas updates found");
     }
   });
 }
