@@ -114,7 +114,7 @@ export async function runSlackConnector(
       ...dbCanvasesToCreate.map((file) => ({
         id: file.ndlFileId,
         url: file.url,
-        type: "text/plain" as const,
+        type: "text/html" as const,
       })),
     ],
     update: [
